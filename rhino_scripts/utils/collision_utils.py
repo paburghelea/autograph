@@ -1,89 +1,246 @@
 #! python3
+"""
+Standalone Mesh Clash Detection
+================================
+Runs clash detection on scene objects and can export results.
+
+This module also exposes ``build_collision_links(doc)`` so the main
+graph setup can import and reuse the same collision implementation.
+
+Can also be run directly to export a JSON report to disk.
+"""
+
 import Rhino
 import rhinoscriptsyntax as rs
 import scriptcontext as sc
 import os
 import json
 
-def perform_mesh_clash_detection():
-    # 1. Select all objects
-    ids = rs.GetObjects("Select Breps for Mesh Clash detection", rs.filter.polysurface)
-    if not ids: return
+try:
+    # Preferred when imported as utils.collision_utils
+    from . import config
+except Exception:
+    try:
+        # Fallback when utils is available on sys.path
+        import utils.config as config
+    except Exception:
+        # Last-resort fallback
+        import config
 
-    # 2. Select Save Folder
-    folder = rs.BrowseForFolder(message="Select folder to save the JSON report")
-    if not folder: return 
-    
-    json_path = os.path.join(folder, "Mesh_Clash_Report.json")
+_log = lambda msg: Rhino.RhinoApp.WriteLine(str(msg))
+CLASH_DISTANCE = getattr(config, "CLASH_DISTANCE", 0.01)
 
-    # 3. Setup Mesh Parameters (Low density for speed)
-    # We use 'FastRenderMesh' to get a lightweight version for testing
-    mesh_params = Rhino.Geometry.MeshingParameters.FastRenderMesh
-    
-    meshes = []
-    valid_ids = []
-    
-    print("--- Converting Breps to Meshes ---")
-    for obj_id in ids:
-        brep = rs.coercebrep(obj_id)
+
+def _mesh_object(rhino_obj, mesh_params):
+    """Return a single mesh for a Rhino object, or None."""
+    geo = rhino_obj.Geometry
+    if geo is None:
+        return None
+
+    otype = geo.ObjectType
+
+    if otype == Rhino.DocObjects.ObjectType.Mesh:
+        return geo
+
+    if otype == Rhino.DocObjects.ObjectType.Brep:
+        parts = Rhino.Geometry.Mesh.CreateFromBrep(geo, mesh_params)
+        if parts:
+            joined = Rhino.Geometry.Mesh()
+            for m in parts:
+                joined.Append(m)
+            return joined
+        return None
+
+    if otype == Rhino.DocObjects.ObjectType.Extrusion:
+        brep = geo.ToBrep()
         if brep:
-            # Create a mesh representation of the Brep
-            joined_mesh = Rhino.Geometry.Mesh()
             parts = Rhino.Geometry.Mesh.CreateFromBrep(brep, mesh_params)
-            for m in parts: joined_mesh.Append(m)
-            
-            meshes.append(joined_mesh)
-            valid_ids.append(str(obj_id))
+            if parts:
+                joined = Rhino.Geometry.Mesh()
+                for m in parts:
+                    joined.Append(m)
+                return joined
+        return None
 
-    count = len(valid_ids)
-    clash_dict = {}
-    clash_count = 0
+    if otype == Rhino.DocObjects.ObjectType.SubD:
+        if hasattr(geo, "ToMesh"):
+            mesh = geo.ToMesh(Rhino.Geometry.MeshingParameters.Minimal)
+            if mesh:
+                return mesh
+        return None
 
-    print("--- Starting Mesh Clash Detection ---")
+    return None
 
-    # 4. Nested Loop Comparison
+
+def _mesh_all_objects(doc):
+    """Mesh all meshable objects in the document."""
+    mesh_params = Rhino.Geometry.MeshingParameters.Minimal
+    guid_strs, meshes = [], []
+
+    for obj in doc.Objects:
+        if obj is None:
+            continue
+        mesh = _mesh_object(obj, mesh_params)
+        if mesh is None:
+            continue
+        guid_strs.append(str(obj.Id))
+        meshes.append(mesh)
+
+    return guid_strs, meshes
+
+
+def _min_mesh_distance(mesh_a, mesh_b, max_samples=64):
+    """Approximate minimum distance between two meshes."""
+    best = float("inf")
+
+    for src, tgt in ((mesh_a, mesh_b), (mesh_b, mesh_a)):
+        verts = src.Vertices
+        vert_count = verts.Count
+        if vert_count == 0:
+            continue
+
+        step = max(1, vert_count // max_samples)
+        for idx in range(0, vert_count, step):
+            pt = Rhino.Geometry.Point3d(verts[idx])
+            closest = tgt.ClosestPoint(pt)
+            if closest is None or closest == Rhino.Geometry.Point3d.Unset:
+                continue
+            d = pt.DistanceTo(closest)
+            if d < best:
+                best = d
+                if best == 0.0:
+                    return 0.0
+
+    return best
+
+
+def _clash_via_rtree(meshes, guid_strs, tolerance):
+    """RTree broad-phase + MeshMeshFast/distance narrow-phase."""
+    count = len(meshes)
+    if count < 2:
+        return set()
+
+    bboxes = []
+    for m in meshes:
+        bb = m.GetBoundingBox(False)
+        if tolerance > 0:
+            bb.Inflate(tolerance)
+        bboxes.append(bb)
+
+    tree = Rhino.Geometry.RTree()
+    for i, bb in enumerate(bboxes):
+        tree.Insert(bb, i)
+
+    pairs = set()
+    Intersection = Rhino.Geometry.Intersect.Intersection
+
     for i in range(count):
-        guid_a = valid_ids[i]
-        mesh_a = meshes[i]
-        
-        for j in range(i + 1, count):
-            guid_b = valid_ids[j]
-            mesh_b = meshes[j]
+        candidates = []
 
-            # Mesh Clash returns an array of intersection polylines
-            # If the length is > 0, they are clashing
-            clash_curves = Rhino.Geometry.Intersect.Intersection.MeshMeshAccurate(
-                mesh_a, mesh_b, sc.doc.ModelAbsoluteTolerance
-            )
+        def _make_cb(idx, cands):
+            def _cb(sender, e):
+                if e.Id > idx:
+                    cands.append(e.Id)
+            return _cb
 
-            if clash_curves and len(clash_curves) > 0:
-                clash_count += 1
-                
-                # Bi-directional dictionary entry
-                if guid_a not in clash_dict: clash_dict[guid_a] = []
-                clash_dict[guid_a].append(guid_b)
-                
-                if guid_b not in clash_dict: clash_dict[guid_b] = []
-                clash_dict[guid_b].append(guid_a)
+        tree.Search(bboxes[i], _make_cb(i, candidates))
 
-    # 5. Export to JSON
-    if clash_dict:
-        try:
-            with open(json_path, 'w') as f_json:
-                json.dump(clash_dict, f_json, indent=4)
-            
-            print("\nSUCCESS: Found {} clashing mesh pairs.".format(clash_count))
-            print("Report saved to: {}".format(json_path))
-            
-            # Select results
-            rs.UnselectAllObjects()
-            rs.SelectObjects(clash_dict.keys())
-        except Exception as e:
-            print("ERROR: Failed to write JSON. {}".format(e))
-    else:
-        print("No Mesh clashes found.")
+        for j in candidates:
+            hit = False
+
+            lines = Intersection.MeshMeshFast(meshes[i], meshes[j])
+            if lines and len(lines) > 0:
+                hit = True
+
+            if not hit and tolerance > 0:
+                dist = _min_mesh_distance(meshes[i], meshes[j])
+                if dist <= tolerance:
+                    hit = True
+
+            if hit:
+                a, b = guid_strs[i], guid_strs[j]
+                pair = (a, b) if a < b else (b, a)
+                pairs.add(pair)
+
+    return pairs
+
+
+def build_collision_links(doc):
+    """Return GraphLink-style collision edges for the given document."""
+    guid_strs, meshes = _mesh_all_objects(doc)
+    count = len(meshes)
+    if count < 2:
+        _log("[collision] < 2 meshable objects — skipping clash detection.")
+        return []
+
+    _log("[collision] Meshed {} objects. Running clash detection (distance={})...".format(
+        count, CLASH_DISTANCE))
+
+    pairs = _clash_via_rtree(meshes, guid_strs, CLASH_DISTANCE)
+    _log("[collision] Found {} colliding pair(s).".format(len(pairs)))
+
+    links = []
+    for src, tgt in pairs:
+        links.append({
+            "source": src,
+            "target": tgt,
+            "name": "collision",
+        })
+    return links
+
+
+def perform_mesh_clash_detection(export_json=True):
+    """
+    Run mesh clash detection using ``build_collision_links``.
+
+    Parameters
+    ----------
+    export_json : bool
+        If True, prompt the user for a save folder and write a JSON report.
+    """
+    doc = Rhino.RhinoDoc.ActiveDoc
+    if doc is None:
+        print("No active Rhino document.")
+        return
+
+    # --- Run the shared clash detection ------------------------------------
+    collision_links = build_collision_links(doc)
+
+    if not collision_links:
+        print("No mesh clashes found.")
+        return
+
+    # Build a bi-directional adjacency dict for reporting / selection
+    clash_dict = {}
+    for link in collision_links:
+        src, tgt = link["source"], link["target"]
+        clash_dict.setdefault(src, []).append(tgt)
+        clash_dict.setdefault(tgt, []).append(src)
+
+    clash_pair_count = len(collision_links)
+    print("\nSUCCESS: Found {} clashing mesh pair(s).".format(clash_pair_count))
+
+    # --- Optional JSON export ----------------------------------------------
+    if export_json:
+        folder = rs.BrowseForFolder(message="Select folder to save the JSON report")
+        if folder:
+            json_path = os.path.join(folder, "Mesh_Clash_Report.json")
+            try:
+                with open(json_path, "w") as f:
+                    json.dump(clash_dict, f, indent=4)
+                print("Report saved to: {}".format(json_path))
+            except Exception as e:
+                print("ERROR: Failed to write JSON. {}".format(e))
+
+    # --- Select clashing objects in the viewport ---------------------------
+    try:
+        rs.UnselectAllObjects()
+        rs.SelectObjects(list(clash_dict.keys()))
+    except Exception:
+        pass
 
     sc.doc.Views.Redraw()
+
 
 if __name__ == "__main__":
     perform_mesh_clash_detection()

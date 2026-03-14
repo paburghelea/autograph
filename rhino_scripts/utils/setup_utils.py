@@ -5,13 +5,23 @@ and pushing it to the GraphHopper API.
 - Each Rhino object becomes a GraphNode (id = GUID).
 - Objects that share the same user-string key-value pair are connected
   with a GraphLink whose name is "shared:<key>=<value>".
-- An empty stub is provided for future collision-based connections.
+- Colliding objects are connected with a GraphLink whose name is "collision".
 """
 
 import json
 import networkx as nx
 import Rhino
 import scriptcontext as sc
+try:
+    # Preferred when imported as utils.setup_utils
+    from . import collision_utils
+except Exception:
+    try:
+        # Fallback when utils is available on sys.path
+        import utils.collision_utils as collision_utils
+    except Exception:
+        # Last-resort fallback
+        import collision_utils
 try:
     # Preferred when imported as utils.setup_utils
     from . import config
@@ -39,80 +49,51 @@ GRAPH_ID_STICKY_KEY = config.GRAPH_ID_STICKY_KEY
 
 
 # ---------------------------------------------------------------------------
-# HTTP helper (IronPython / .NET)
+# HTTP helpers (Python 3 / urllib)
 # ---------------------------------------------------------------------------
 
-def _post_json(url, payload):
-    """POST a JSON payload using .NET WebClient and return the response body."""
-    import System
-    from System.Net import WebClient
-    from System.Text import Encoding
+import urllib.request
+import urllib.error
 
-    body = json.dumps(payload)
-    client = WebClient()
-    client.Headers.Add("Content-Type", "application/json")
+
+def _http_request(url, method="GET", payload=None):
+    """Send an HTTP request and return the response body as a string."""
+    headers = {}
+    data = None
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        response_bytes = client.UploadData(
-            url,
-            "POST",
-            Encoding.UTF8.GetBytes(body),
-        )
-        return Encoding.UTF8.GetString(response_bytes)
-    except System.Net.WebException as ex:
-        _log("[ERROR] POST {} failed: {}".format(url, ex.Message))
-        if ex.Response:
-            import System.IO
-            reader = System.IO.StreamReader(ex.Response.GetResponseStream())
-            _log("[ERROR] Response body: {}".format(reader.ReadToEnd()))
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return resp.read().decode("utf-8")
+    except urllib.error.HTTPError as ex:
+        body = ""
+        try:
+            body = ex.read().decode("utf-8")
+        except Exception:
+            pass
+        _log("[ERROR] {} {} failed (HTTP {}): {}".format(method, url, ex.code, body))
         raise
+    except urllib.error.URLError as ex:
+        _log("[ERROR] {} {} failed: {}".format(method, url, ex.reason))
+        raise
+
+
+def _post_json(url, payload):
+    """POST a JSON payload and return the response body."""
+    return _http_request(url, method="POST", payload=payload)
 
 
 def _patch_json(url, payload):
-    """PATCH a JSON payload using .NET HttpWebRequest and return response body."""
-    import System
-    from System import Uri
-    from System.Net import HttpWebRequest
-    from System.IO import StreamReader
-    from System.Text import Encoding
-
-    body = json.dumps(payload)
-    data = Encoding.UTF8.GetBytes(body)
-    req = HttpWebRequest.Create(Uri(url))
-    req.Method = "PATCH"
-    req.ContentType = "application/json"
-    req.ContentLength = data.Length
-
-    req_stream = req.GetRequestStream()
-    req_stream.Write(data, 0, data.Length)
-    req_stream.Close()
-
-    try:
-        resp = req.GetResponse()
-        reader = StreamReader(resp.GetResponseStream())
-        text = reader.ReadToEnd()
-        reader.Close()
-        resp.Close()
-        return text
-    except System.Net.WebException as ex:
-        _log("[ERROR] PATCH {} failed: {}".format(url, ex.Message))
-        if ex.Response:
-            reader = StreamReader(ex.Response.GetResponseStream())
-            _log("[ERROR] Response body: {}".format(reader.ReadToEnd()))
-            reader.Close()
-        raise
+    """PATCH a JSON payload and return the response body."""
+    return _http_request(url, method="PATCH", payload=payload)
 
 
 def _get_json(url):
-    """GET JSON endpoint and return response body text."""
-    import System
-    from System.Net import WebClient
-
-    client = WebClient()
-    try:
-        return client.DownloadString(url)
-    except System.Net.WebException as ex:
-        _log("[WARN] GET {} failed: {}".format(url, ex.Message))
-        raise
+    """GET a JSON endpoint and return the response body."""
+    return _http_request(url, method="GET")
 
 
 def _try_parse_json(text):
@@ -169,6 +150,7 @@ def _upsert_graph(graph_name, payload):
     Upsert graph resource:
     - create graph if it does not exist,
     - otherwise overwrite existing graph via PATCH.
+    - if PATCH returns 404, clear cache and fall back to POST.
     """
     graph_id = sc.sticky.get(GRAPH_ID_STICKY_KEY)
     if not graph_id:
@@ -182,8 +164,23 @@ def _upsert_graph(graph_name, payload):
             "name": payload.get("name"),
             "graph": payload.get("graph"),
         }
-        response = _patch_json(patch_url, patch_payload)
-        return "updated", response
+        try:
+            response = _patch_json(patch_url, patch_payload)
+            return "updated", response
+        except Exception as ex:
+            # If we get a 404, the graph was deleted server-side.
+            # Clear the stale ID and fall through to POST below.
+            is_404 = False
+            if hasattr(ex, "code") and ex.code == 404:
+                is_404 = True
+            elif "404" in str(ex):
+                is_404 = True
+            if is_404:
+                _log("[upsert] Cached graph ID '{}' returned 404 — "
+                     "creating a new graph instead.".format(graph_id))
+                sc.sticky.pop(GRAPH_ID_STICKY_KEY, None)
+            else:
+                raise
 
     response = _post_json(API_BASE_URL + GRAPH_ENDPOINT, payload)
     obj = _try_parse_json(response)
@@ -212,9 +209,7 @@ def _collect_nodes_and_attrs(doc):
     nodes = []
     kv_index = {}  # (key, value) -> [guid_str, ...]
 
-    enumerator = doc.Objects.GetEnumerator()
-    while enumerator.MoveNext():
-        obj = enumerator.Current
+    for obj in doc.Objects:
         if obj is None:
             continue
 
@@ -231,9 +226,41 @@ def _collect_nodes_and_attrs(doc):
         else:
             node["name"] = guid_str
 
-        # geometry type as metadata
-        if obj.Geometry:
-            node["objectType"] = str(obj.Geometry.ObjectType)
+        # geometry type + geometric properties as metadata
+        geo = obj.Geometry
+        if geo:
+            node["objectType"] = str(geo.ObjectType)
+
+            # --- Volume & Surface Area ---
+            # Try to compute from Brep (works for polysurfaces, solids, etc.)
+            brep = None
+            otype = geo.ObjectType
+
+            if otype == Rhino.DocObjects.ObjectType.Brep:
+                brep = geo
+
+            elif otype == Rhino.DocObjects.ObjectType.Extrusion:
+                brep = geo.ToBrep()
+
+            elif otype == Rhino.DocObjects.ObjectType.SubD:
+                if hasattr(geo, "ToBrep"):
+                    brep = geo.ToBrep()
+
+            if brep is not None:
+                mp = Rhino.Geometry.VolumeMassProperties.Compute(brep)
+                if mp is not None:
+                    node["volume"] = round(mp.Volume, 6)
+                amp = Rhino.Geometry.AreaMassProperties.Compute(brep)
+                if amp is not None:
+                    node["surfaceArea"] = round(amp.Area, 6)
+
+            elif otype == Rhino.DocObjects.ObjectType.Mesh:
+                mp = Rhino.Geometry.VolumeMassProperties.Compute(geo)
+                if mp is not None:
+                    node["volume"] = round(mp.Volume, 6)
+                amp = Rhino.Geometry.AreaMassProperties.Compute(geo)
+                if amp is not None:
+                    node["surfaceArea"] = round(amp.Area, 6)
 
         # layer name
         layer_idx = attrs.LayerIndex
@@ -268,51 +295,89 @@ def _build_attribute_links(kv_index):
     list[dict]   –  list of GraphLink dicts
     """
     links = []
-    seen = set()
-
     for (key, val), guid_list in kv_index.items():
-        if len(guid_list) < 2:
-            continue
-        for i in range(len(guid_list)):
-            for j in range(i + 1, len(guid_list)):
-                src, tgt = guid_list[i], guid_list[j]
-                edge_id = (src, tgt, key, val) if src < tgt else (tgt, src, key, val)
-                if edge_id in seen:
-                    continue
-                seen.add(edge_id)
-                links.append({
-                    "source": src,
-                    "target": tgt,
-                    "name": "shared:{}={}".format(key, val),
-                    "sharedKey": key,
-                    "sharedValue": val,
-                })
+        links.extend(_build_links_for_shared_pair(key, val, guid_list))
     return links
 
 
+def _build_links_for_shared_pair(key, val, guid_list):
+    """Build pairwise GraphLink objects for one shared key/value pair."""
+    links = []
+    seen = set()
+
+    if not guid_list or len(guid_list) < 2:
+        return links
+
+    for i in range(len(guid_list)):
+        for j in range(i + 1, len(guid_list)):
+            src, tgt = guid_list[i], guid_list[j]
+            edge_id = (src, tgt) if src < tgt else (tgt, src)
+            if edge_id in seen:
+                continue
+            seen.add(edge_id)
+            links.append({
+                "source": src,
+                "target": tgt,
+                "name": "shared:{}={}".format(key, val),
+                "sharedKey": key,
+                "sharedValue": val,
+            })
+
+    return links
+
+
+def _build_link_sets(kv_index, collision_links):
+    """Build GraphData-compatible link sets (one per shared key/category)."""
+    link_sets = []
+
+    # Group by key, then add edges for every shared value within that key.
+    key_to_value_map = {}
+    for (key, val), guid_list in kv_index.items():
+        key_to_value_map.setdefault(key, {})[val] = guid_list
+
+    for key in sorted(key_to_value_map.keys(), key=lambda k: str(k)):
+        value_map = key_to_value_map[key]
+        key_links = []
+        seen = set()
+
+        for val in sorted(value_map.keys(), key=lambda v: str(v)):
+            links = _build_links_for_shared_pair(key, val, value_map[val])
+            for link in links:
+                src = link.get("source")
+                tgt = link.get("target")
+                shared_val = link.get("sharedValue")
+                edge_id = (src, tgt, shared_val) if src < tgt else (tgt, src, shared_val)
+                if edge_id in seen:
+                    continue
+                seen.add(edge_id)
+                key_links.append(link)
+
+        if not key_links:
+            continue
+
+        link_sets.append({
+            "set": str(key),
+            "notes": "Objects linked when they share the same value for '{}'".format(key),
+            "links": key_links,
+        })
+
+    # Keep collisions as a separate dedicated set.
+    link_sets.append({
+        "set": "collisions",
+        "notes": "Objects linked by mesh clash / proximity detection.",
+        "links": list(collision_links or []),
+    })
+
+    return link_sets
+
+
 # ---------------------------------------------------------------------------
-# Collision-based connections (stub)
+# Collision-based connections (delegated)
 # ---------------------------------------------------------------------------
 
 def build_collision_links(doc):
-    """
-    Create GraphLink entries for every pair of objects whose bounding
-    boxes (or meshes) collide in the scene.
-
-    Parameters
-    ----------
-    doc : Rhino.RhinoDoc
-        The active Rhino document.
-
-    Returns
-    -------
-    list[dict]
-        List of GraphLink dicts with name="collision".
-
-    TODO: implement actual collision / intersection detection.
-    """
-    # Placeholder – return an empty list for now.
-    return []
+    """Backward-compatible wrapper delegating to ``collision_utils``."""
+    return collision_utils.build_collision_links(doc)
 
 
 # ---------------------------------------------------------------------------
@@ -397,11 +462,12 @@ def setup_graph(graph_name=None):
     attr_links = _build_attribute_links(kv_index)
     _log("[setup_graph] Created {} attribute-based link(s).".format(len(attr_links)))
 
-    # 3. Build links from collisions (stub – currently returns [])
-    collision_links = build_collision_links(doc)
+    # 3. Build links from mesh collisions
+    collision_links = collision_utils.build_collision_links(doc)
     _log("[setup_graph] Created {} collision-based link(s).".format(len(collision_links)))
 
     all_links = attr_links + collision_links
+    link_sets = _build_link_sets(kv_index, collision_links)
 
     # 4. Build & store a NetworkX graph in sc.sticky
     G = _build_networkx_graph(nodes, all_links)
@@ -411,7 +477,7 @@ def setup_graph(graph_name=None):
         "name": graph_name,
         "graph": {
             "nodes": nodes,
-            "links": all_links,
+            "links": link_sets,
         },
     }
 

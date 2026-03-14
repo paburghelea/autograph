@@ -18,21 +18,23 @@ function renderValue(value: unknown) {
 export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
   if (!node) return null;
 
+  const reserved = [
+    "id",
+    "name",
+    "x",
+    "y",
+    "z",
+    "vx",
+    "vy",
+    "vz",
+    "fx",
+    "fy",
+    "fz",
+    "__threeObj",
+    "__ObjData",
+  ];
   const keyValuePairs = Object.entries(node).filter(
-    ([k]) =>
-      ![
-        "id",
-        "name",
-        "x",
-        "y",
-        "z",
-        "vx",
-        "vy",
-        "vz",
-        "fx",
-        "fy",
-        "fz",
-      ].includes(k)
+    ([k]) => !reserved.includes(k)
   );
 
   return (
@@ -55,24 +57,24 @@ export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
           ×
         </Button>
       </div>
-      <div className="max-h-64 overflow-y-auto p-3">
+      <div className="max-h-96 overflow-y-auto p-3">
         <table className="w-full text-xs">
           <tbody>
             <tr>
               <th className="w-24 pb-1 pr-2 text-left align-top font-medium text-muted-foreground">
                 id
               </th>
-              <td className="pb-1 align-top">
-                {renderValueWithIcon(node.id)}
+              <td className="pb-1 align-top font-mono break-all">
+                {renderValue(node.id)}
               </td>
             </tr>
             {keyValuePairs.map(([key, value]) => (
               <tr key={key}>
-                <th className="w-24 pb-1 pr-2 text-left align-top font-medium text-muted-foreground">
+                <th className="w-24 pb-1 pr-2 text-left align-top font-medium text-muted-foreground break-all">
                   {key}
                 </th>
-                <td className="pb-1 align-top">
-                  {renderValueWithIcon(value)}
+                <td className="pb-1 align-top font-mono break-all">
+                  {renderValue(value)}
                 </td>
               </tr>
             ))}
