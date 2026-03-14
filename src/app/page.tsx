@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileStack, Download, Trash2, FlaskConical, RefreshCw } from "lucide-react";
+import { FileStack, Download, Trash2, FlaskConical, RefreshCw, AlertTriangle } from "lucide-react";
 import { GraphViewer } from "@/components/GraphViewer";
 import { MetadataStylePanel } from "@/components/MetadataStylePanel";
 import { NodeDetailPanel } from "@/components/NodeDetailPanel";
 import { useGraphStore } from "@/store/use-graph-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+import Image from "next/image";
 import {
   SidebarProvider,
   Sidebar,
@@ -59,6 +61,8 @@ export default function Home() {
     liveUpdateMode,
     setLiveUpdateMode,
     checkForUpdates,
+    errorPreviewMode,
+    setErrorPreviewMode,
   } = useGraphStore();
 
   const rhinoInputRef = useRef<HTMLInputElement>(null);
@@ -91,8 +95,10 @@ export default function Home() {
   return (
     <SidebarProvider>
       <Sidebar variant="inset">
-        <SidebarHeader>
-          <span className="font-semibold text-sidebar-foreground">
+        <SidebarHeader className="flex flex-row items-center justify-start">
+          <Image className="size-6" src="/logo.png" alt="GraphHopper" width={96} height={96} />
+
+          <span className="font-semibold">
             GraphHopper
           </span>
         </SidebarHeader>
@@ -151,7 +157,21 @@ export default function Home() {
               }
             >
               <RefreshCw className="size-4 shrink-0" />
-              Live update {liveUpdateMode ? "on" : "off"}
+              Live {liveUpdateMode ? "on" : "off"}
+            </Button>
+            <Button
+              variant={errorPreviewMode ? "default" : "outline"}
+              size="sm"
+              type="button"
+              onClick={() => setErrorPreviewMode(!errorPreviewMode)}
+              title={
+                errorPreviewMode
+                  ? "Error preview on: faulty nodes red, non-faulty green"
+                  : "Show faulty nodes in red and non-faulty in green"
+              }
+            >
+              <AlertTriangle className="size-4 shrink-0" />
+              Error preview {errorPreviewMode ? "on" : "off"}
             </Button>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3">
@@ -243,7 +263,6 @@ export default function Home() {
         <GraphViewer
           graphData={graphData}
         />
-        <MetadataStylePanel />
         <NodeDetailPanel
           node={selectedNode}
           onClose={() => setSelectedNode(null)}

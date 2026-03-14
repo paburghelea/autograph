@@ -189,6 +189,8 @@ interface GraphStore {
   columnFloorTestResult: ColumnFloorTestResult | null;
   /** When true, periodically check server updated_at and pull new data if newer */
   liveUpdateMode: boolean;
+  /** When true, node colors show faulty=red and non-faulty=green */
+  errorPreviewMode: boolean;
 
   // Actions
   setFiles: (files: GraphFile[]) => void;
@@ -211,6 +213,7 @@ interface GraphStore {
   /** Run column–floor connection test, update nodes with faulty, and persist to DB */
   runColumnFloorTest: () => Promise<ColumnFloorTestResult>;
   setLiveUpdateMode: (enabled: boolean) => void;
+  setErrorPreviewMode: (enabled: boolean) => void;
   /** Fetch current file from server; if updated_at is newer, load the new data */
   checkForUpdates: () => Promise<void>;
 }
@@ -227,6 +230,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   saving: false,
   columnFloorTestResult: null,
   liveUpdateMode: false,
+  errorPreviewMode: false,
 
   setFiles: (files) => set({ files }),
   setCurrentFile: (currentFile) => set({ currentFile }),
@@ -407,6 +411,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   },
 
   setLiveUpdateMode: (liveUpdateMode) => set({ liveUpdateMode }),
+  setErrorPreviewMode: (errorPreviewMode) => set({ errorPreviewMode }),
 
   checkForUpdates: async () => {
     const { currentFile, loadFile } = get();

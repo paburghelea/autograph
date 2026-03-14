@@ -3,7 +3,6 @@
 import type { JSX } from "react";
 import { useMemo } from "react";
 import { useGraphStore } from "@/store/use-graph-store";
-import { cn } from "@/lib/utils";
 import { getNumericPathsFromNodes, getNumericPathsFromLinks } from "@/lib/metadata";
 
 export function MetadataStylePanel(): JSX.Element | null {
@@ -26,37 +25,19 @@ export function MetadataStylePanel(): JSX.Element | null {
   }
 
   return (
-    <div
-      className={cn(
-        "absolute right-1 top-56 z-10 w-80 rounded-lg border border-border bg-cardtext-card-foreground"
-      )}
+    <
     >
-      <div className=" border-border px-3 py-2">
+      <div className=" border-border  py-2">
         <p className="text-xs font-semibold text-muted-foreground">
           Metadata preview
         </p>
-        <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-          Map numeric attributes to node colors and sizes.
-        </p>
+   
         <div className="mt-2">
           <p className="text-[11px] font-medium text-muted-foreground mb-1">
             Available numeric attributes
           </p>
           <div className="space-y-1.5 max-h-28 overflow-y-auto">
-            {nodeNumericKeys.length > 0 && (
-              <div>
-                <p className="text-[10px] font-medium text-muted-foreground/90 uppercase tracking-wide">
-                  Nodes
-                </p>
-                <ul className="text-[11px] text-muted-foreground/90 space-y-0.5 font-mono mt-0.5">
-                  {nodeNumericKeys.map((key) => (
-                    <li key={`node-${key}`} className="truncate" title={key}>
-                      {key}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+     
             {linkNumericKeys.length > 0 && (
               <div>
                 <p className="text-[10px] font-medium text-muted-foreground/90 uppercase tracking-wide">
@@ -74,14 +55,14 @@ export function MetadataStylePanel(): JSX.Element | null {
           </div>
         </div>
       </div>
-      <div className="space-y-3 p-3 text-xs">
+      <div className="space-y-3 py-3 text-xs">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
             <label className="text-[11px] font-medium text-muted-foreground">
               Color by
             </label>
             <select
-              className="h-7 flex-1 rounded-md border bg-background px-2 text-[11px] shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="h-7 flex-1 rounded-md border bg-background px-2 text-[11px]  focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               value={metadataStyle.colorAttribute ?? ""}
               onChange={(e) =>
                 setMetadataStyle({
@@ -131,7 +112,7 @@ export function MetadataStylePanel(): JSX.Element | null {
               Size by
             </label>
             <select
-              className="h-7 flex-1 rounded-md border bg-background px-2 text-[11px] shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="h-7 flex-1 rounded-md border bg-background px-2 text-[11px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               value={metadataStyle.sizeAttribute ?? ""}
               onChange={(e) =>
                 setMetadataStyle({
@@ -177,6 +158,6 @@ export function MetadataStylePanel(): JSX.Element | null {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

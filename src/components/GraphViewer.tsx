@@ -6,6 +6,7 @@ import type { GraphData, GraphNode } from "@/types/graph";
 import { useGraphStore } from "@/store/use-graph-store";
 import { getValueByPath } from "@/lib/metadata";
 import { GitBranchPlusIcon } from "lucide-react";
+import { MetadataStylePanel } from "./MetadataStylePanel";
 
 const ForceGraph3D = dynamic(() => import("react-force-graph-3d"), {
   ssr: false,
@@ -43,19 +44,19 @@ export function GraphViewer({
     return () => observer.disconnect();
   }, []);
 
-  const { setSelectedNode, metadataStyle } = useGraphStore();
+  const { setSelectedNode, metadataStyle, errorPreviewMode } = useGraphStore();
   // const width = widthProp ?? dimensions.width;
   // const height = heightProp ?? dimensions.height;
 
   const handleNodeClick = (
-    node: { id?: string | number; name?: string; [k: string]: unknown }
+    node: { id?: string | number; name?: string;[k: string]: unknown }
   ) => {
     const nodeId = String(node.id ?? "");
     const fullNode = graphData.nodes.find((n) => n.id === nodeId);
     setSelectedNode((fullNode ?? { ...node, id: nodeId }) as GraphNode);
   };
 
-  const handleNodeHover = useCallback((node: { id?: string | number; name?: string; [k: string]: unknown } | null) => {
+  const handleNodeHover = useCallback((node: { id?: string | number; name?: string;[k: string]: unknown } | null) => {
     setHoverNode(node ? { ...node, id: String(node.id ?? "") } as GraphNode : null);
   }, []);
 
@@ -194,17 +195,20 @@ export function GraphViewer({
   if (normalizedData.nodes.length === 0) {
     return (
       <div
-        className="flex min-h-0 min-w-0 flex-1 items-center justify-center rounded-lg border border-border bg-muted/50 text-muted-foreground"
+        className="flex min-h-0 min-w-0 flex-1 gap-2 items-center justify-center"
       >
-        No nodes to display. Add graph data or load a saved graph.
+        No nodes to display <GitBranchPlusIcon className="size-4" />
       </div>
     );
   }
 
   return (
     <div ref={containerRef} className="absolute inset-0 overflow-hidden">
-      <div className="absolute right-1 bottom-1 z-20 rounded-lg bg-background p-2 border border-border max-w-[min(100%,20rem)]">
-        <div className="mb-1.5 text-xs font-medium text-muted-foreground">
+      <div className="absolute right-1 bottom-1 z-20 rounded-lg bg-background p-4 border border-border max-w-[min(100%,20rem)]">
+
+        <MetadataStylePanel />
+
+        <div className="mb-1.5 text-xs font-medium text-muted-foreground border-t pt-4">
           Link sets
         </div>
         <div className="flex flex-wrap gap-1">
@@ -212,11 +216,10 @@ export function GraphViewer({
             type="button"
             title="Show all link sets"
             onClick={selectAllLinkSets}
-            className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
-              activeLinkSetIndices.size === 0
+            className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${activeLinkSetIndices.size === 0
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
+              }`}
           >
             All
           </button>
@@ -226,11 +229,10 @@ export function GraphViewer({
               type="button"
               title={set.notes ?? set.set}
               onClick={() => toggleLinkSetIndex(index)}
-              className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
-                activeLinkSetIndices.has(index)
+              className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${activeLinkSetIndices.has(index)
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
+                }`}
             >
               <span
                 className="size-2 shrink-0 rounded-full border border-white/30"
@@ -254,7 +256,9 @@ export function GraphViewer({
           ((
             n: { [others: string]: any; id?: string | number }
           ): string => {
-            if (n.faulty === true) return "#ef4444";
+            if (errorPreviewMode) {
+              return n.faulty === true ? "#ef4444" : "#22c55e";
+            }
 
             const baseColor =
               (n.color as string | undefined) ??
@@ -296,8 +300,8 @@ export function GraphViewer({
         linkWidth={EDGE_THICKNESS}
         linkOpacity={EDGE_OPACITY}
         linkCurvature={0.2}
-        // linkDirectionalParticles={2}
-        // linkDirectionalParticleOffset={2}
+      // linkDirectionalParticles={2}
+      // linkDirectionalParticleOffset={2}
       />
       {/* {hoverNode && (
         <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 font-mono text-xs text-white">
