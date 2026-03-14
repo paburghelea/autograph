@@ -20,20 +20,6 @@ export const metadata: Metadata = {
   description: "3D graph visualizer with REST API and Rhino file support",
 };
 
-const themeScript = `
-(function() {
-  try {
-    var theme = localStorage.getItem('theme');
-    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var isDark = theme === 'dark' || (!theme && prefersDark);
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  } catch (e) {}
-})();
-`;
 
 export default function RootLayout({
   children,
@@ -46,7 +32,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head> */}
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background`}
       >
         <TooltipProvider>{children}</TooltipProvider>
       </body>

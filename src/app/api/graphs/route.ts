@@ -4,7 +4,7 @@ import type { CreateGraphPayload, GraphData } from "@/types/graph";
 
 export async function GET() {
   try {
-    const files = store.listGraphFiles();
+    const files = await store.listGraphFiles();
     return NextResponse.json(files);
   } catch (e) {
     console.error(e);
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const links = Array.isArray(graph.links) ? graph.links : [];
     const graphData: GraphData = { nodes: graph.nodes, links };
 
-    const file = store.createGraphFile(name, graphData, {
+    const file = await store.createGraphFile(name, graphData, {
       rhinoFileBase64,
       rhinoFileName,
     });

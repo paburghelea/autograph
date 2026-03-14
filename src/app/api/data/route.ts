@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const links = Array.isArray(graph.links) ? graph.links : [];
     const graphData: GraphData = { nodes: graph.nodes, links };
 
-    const file = store.createGraphFile(name, graphData);
+    const file = await store.createGraphFile(name, graphData);
     return NextResponse.json(file);
   } catch (e) {
     console.error(e);

@@ -1,39 +1,84 @@
 /**
- * Server-side graph storage using Zustand.
- * Used by API routes via getState().
+ * Server-side graph storage backed by Turso (libSQL).
+ * API stays the same as before but data is persisted in the database.
  */
 
-import { createStore } from "zustand/vanilla";
 import type { GraphFile, GraphData } from "@/types/graph";
 import { v4 as uuidv4 } from "uuid";
+import { getDbClient } from "@/lib/db";
 
-export interface GraphStoreState {
-  files: Record<string, GraphFile>;
+const TABLE_NAME = "graph_files";
+
+let initialized = false;
+
+async function ensureTable() {
+  if (initialized) return;
+  const db = getDbClient();
+  await db.execute({
+    sql: `
+      CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        graph_json TEXT NOT NULL,
+        rhino_file_base64 TEXT,
+        rhino_file_name TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `,
+    args: [],
+  });
+  initialized = true;
 }
 
-const graphStore = createStore<GraphStoreState>(() => ({
-  files: {},
-}));
-
-function listGraphFiles(): GraphFile[] {
-  const { files } = graphStore.getState();
-  return Object.values(files).sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  );
+function rowToGraphFile(row: Record<string, unknown>): GraphFile {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    graph: JSON.parse(String(row.graph_json)) as GraphData,
+    rhinoFileBase64:
+      (row.rhino_file_base64 as string | null | undefined) ?? undefined,
+    rhinoFileName:
+      (row.rhino_file_name as string | null | undefined) ?? undefined,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
 }
 
-function getGraphFile(id: string): GraphFile | undefined {
-  return graphStore.getState().files[id];
+async function listGraphFiles(): Promise<GraphFile[]> {
+  await ensureTable();
+  const db = getDbClient();
+  const result = await db.execute({
+    sql: `SELECT * FROM ${TABLE_NAME} ORDER BY updated_at DESC`,
+    args: [],
+  });
+  return result.rows.map((row) => rowToGraphFile(row as any));
 }
 
-function createGraphFile(
+async function getGraphFile(id: string): Promise<GraphFile | undefined> {
+  await ensureTable();
+  const db = getDbClient();
+  const result = await db.execute({
+    sql: `SELECT * FROM ${TABLE_NAME} WHERE id = ? LIMIT 1`,
+    args: [id],
+  });
+  const row = result.rows[0];
+  if (!row) return undefined;
+  return rowToGraphFile(row as any);
+}
+
+async function createGraphFile(
   name: string,
   graph: GraphData,
   options?: { rhinoFileBase64?: string; rhinoFileName?: string }
-): GraphFile {
+): Promise<GraphFile> {
+  await ensureTable();
+  const db = getDbClient();
   const now = new Date().toISOString();
+  const id = uuidv4();
+
   const file: GraphFile = {
-    id: uuidv4(),
+    id,
     name,
     graph,
     rhinoFileBase64: options?.rhinoFileBase64,
@@ -41,17 +86,35 @@ function createGraphFile(
     createdAt: now,
     updatedAt: now,
   };
-  graphStore.setState((state) => ({
-    files: { ...state.files, [file.id]: file },
-  }));
+
+  await db.execute({
+    sql: `
+      INSERT INTO ${TABLE_NAME} (
+        id, name, graph_json, rhino_file_base64, rhino_file_name, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `,
+    args: [
+      file.id,
+      file.name,
+      JSON.stringify(file.graph),
+      file.rhinoFileBase64 ?? null,
+      file.rhinoFileName ?? null,
+      file.createdAt,
+      file.updatedAt,
+    ],
+  });
+
   return file;
 }
 
-function updateGraphFile(
+async function updateGraphFile(
   id: string,
-  updates: Partial<Pick<GraphFile, "name" | "graph" | "rhinoFileBase64" | "rhinoFileName">>
-): GraphFile | undefined {
-  const existing = graphStore.getState().files[id];
+  updates: Partial<
+    Pick<GraphFile, "name" | "graph" | "rhinoFileBase64" | "rhinoFileName">
+  >
+): Promise<GraphFile | undefined> {
+  await ensureTable();
+  const existing = await getGraphFile(id);
   if (!existing) return undefined;
 
   const updated: GraphFile = {
@@ -59,18 +122,49 @@ function updateGraphFile(
     ...updates,
     updatedAt: new Date().toISOString(),
   };
-  graphStore.setState((state) => ({
-    files: { ...state.files, [id]: updated },
-  }));
+
+  const db = getDbClient();
+  await db.execute({
+    sql: `
+      UPDATE ${TABLE_NAME}
+      SET
+        name = ?,
+        graph_json = ?,
+        rhino_file_base64 = ?,
+        rhino_file_name = ?,
+        updated_at = ?
+      WHERE id = ?
+    `,
+    args: [
+      updated.name,
+      JSON.stringify(updated.graph),
+      updated.rhinoFileBase64 ?? null,
+      updated.rhinoFileName ?? null,
+      updated.updatedAt,
+      updated.id,
+    ],
+  });
+
   return updated;
 }
 
-function deleteGraphFile(id: string): boolean {
-  const { files } = graphStore.getState();
-  if (!(id in files)) return false;
-  const { [id]: _, ...rest } = files;
-  graphStore.setState({ files: rest });
-  return true;
+async function deleteGraphFile(id: string): Promise<boolean> {
+  await ensureTable();
+  const db = getDbClient();
+  const result = await db.execute({
+    sql: `DELETE FROM ${TABLE_NAME} WHERE id = ?`,
+    args: [id],
+  });
+  // libsql-client exposes rowsAffected on the result for write queries
+  // If it's not available, treat success as true.
+  const rowsAffected = (result as any).rowsAffected as number | undefined;
+  return rowsAffected === undefined ? true : rowsAffected > 0;
 }
 
-export { listGraphFiles, getGraphFile, createGraphFile, updateGraphFile, deleteGraphFile };
+export {
+  listGraphFiles,
+  getGraphFile,
+  createGraphFile,
+  updateGraphFile,
+  deleteGraphFile,
+};

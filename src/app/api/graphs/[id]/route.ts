@@ -9,7 +9,7 @@ export async function GET(
   { params }: RouteParams
 ) {
   const { id } = await params;
-  const file = store.getGraphFile(id);
+  const file = await store.getGraphFile(id);
   if (!file) {
     return NextResponse.json({ error: "Graph not found" }, { status: 404 });
   }
@@ -21,7 +21,7 @@ export async function PATCH(
   { params }: RouteParams
 ) {
   const { id } = await params;
-  const file = store.getGraphFile(id);
+  const file = await store.getGraphFile(id);
   if (!file) {
     return NextResponse.json({ error: "Graph not found" }, { status: 404 });
   }
@@ -32,8 +32,12 @@ export async function PATCH(
 
     if (body.name !== undefined) updates.name = body.name;
     if (body.graph !== undefined) {
-      const nodes = Array.isArray(body.graph.nodes) ? body.graph.nodes : file.graph.nodes;
-      const links = Array.isArray(body.graph.links) ? body.graph.links : file.graph.links;
+      const nodes = Array.isArray(body.graph.nodes)
+        ? body.graph.nodes
+        : file.graph.nodes;
+      const links = Array.isArray(body.graph.links)
+        ? body.graph.links
+        : file.graph.links;
       updates.graph = { nodes, links };
     }
     if (body.rhinoFileBase64 !== undefined)
@@ -41,7 +45,7 @@ export async function PATCH(
     if (body.rhinoFileName !== undefined)
       updates.rhinoFileName = body.rhinoFileName;
 
-    const updated = store.updateGraphFile(id, updates);
+    const updated = await store.updateGraphFile(id, updates);
     return NextResponse.json(updated);
   } catch (e) {
     console.error(e);
@@ -57,7 +61,7 @@ export async function DELETE(
   { params }: RouteParams
 ) {
   const { id } = await params;
-  const deleted = store.deleteGraphFile(id);
+  const deleted = await store.deleteGraphFile(id);
   if (!deleted) {
     return NextResponse.json({ error: "Graph not found" }, { status: 404 });
   }

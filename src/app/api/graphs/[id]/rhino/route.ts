@@ -11,7 +11,7 @@ export async function GET(
   { params }: RouteParams
 ) {
   const { id } = await params;
-  const file = store.getGraphFile(id);
+  const file = await store.getGraphFile(id);
   if (!file) {
     return NextResponse.json({ error: "Graph not found" }, { status: 404 });
   }
