@@ -115,10 +115,10 @@ export function runColumnFloorTest(data: GraphData): ColumnFloorTestResult {
 }
 
 /**
- * Apply test result to the graph: add `faulty: true` to every Column node that
- * failed the test. This updated graph is intended to be written back to the
- * database's graph_json column so the relevant nodes persist the faulty flag.
- * Passing columns get `faulty: false`. Non-column nodes are unchanged.
+ * Apply test result to the graph: ensure every node has a `faulty` attribute.
+ * If a node does not have `faulty`, set it to false by default. If the node
+ * is a Column that failed the test, set `faulty: true`. Updated graph is
+ * written back to the database's graph_json column.
  */
 export function applyColumnFloorTestToNodes(
   data: GraphData,
@@ -131,14 +131,13 @@ export function applyColumnFloorTestToNodes(
 
   const nodes = (data.nodes ?? []).map((node) => {
     if (!columnIds.has(node.id)) {
-      const { tests, faulty, ...rest } = node as Record<string, unknown>;
-      return rest as GraphNode;
+      return { ...node, faulty: false } as GraphNode;
     }
     const failed = failedSet.has(node.id);
     return {
       ...node,
       tests: !failed,
-      faulty: failed, // written to graph_json so DB has faulty on relevant nodes
+      faulty: failed ? true : false,
     } as GraphNode;
   });
 
