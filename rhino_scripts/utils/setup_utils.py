@@ -226,9 +226,41 @@ def _collect_nodes_and_attrs(doc):
         else:
             node["name"] = guid_str
 
-        # geometry type as metadata
-        if obj.Geometry:
-            node["objectType"] = str(obj.Geometry.ObjectType)
+        # geometry type + geometric properties as metadata
+        geo = obj.Geometry
+        if geo:
+            node["objectType"] = str(geo.ObjectType)
+
+            # --- Volume & Surface Area ---
+            # Try to compute from Brep (works for polysurfaces, solids, etc.)
+            brep = None
+            otype = geo.ObjectType
+
+            if otype == Rhino.DocObjects.ObjectType.Brep:
+                brep = geo
+
+            elif otype == Rhino.DocObjects.ObjectType.Extrusion:
+                brep = geo.ToBrep()
+
+            elif otype == Rhino.DocObjects.ObjectType.SubD:
+                if hasattr(geo, "ToBrep"):
+                    brep = geo.ToBrep()
+
+            if brep is not None:
+                mp = Rhino.Geometry.VolumeMassProperties.Compute(brep)
+                if mp is not None:
+                    node["volume"] = round(mp.Volume, 6)
+                amp = Rhino.Geometry.AreaMassProperties.Compute(brep)
+                if amp is not None:
+                    node["surfaceArea"] = round(amp.Area, 6)
+
+            elif otype == Rhino.DocObjects.ObjectType.Mesh:
+                mp = Rhino.Geometry.VolumeMassProperties.Compute(geo)
+                if mp is not None:
+                    node["volume"] = round(mp.Volume, 6)
+                amp = Rhino.Geometry.AreaMassProperties.Compute(geo)
+                if amp is not None:
+                    node["surfaceArea"] = round(amp.Area, 6)
 
         # layer name
         layer_idx = attrs.LayerIndex
@@ -263,26 +295,80 @@ def _build_attribute_links(kv_index):
     list[dict]   –  list of GraphLink dicts
     """
     links = []
+    for (key, val), guid_list in kv_index.items():
+        links.extend(_build_links_for_shared_pair(key, val, guid_list))
+    return links
+
+
+def _build_links_for_shared_pair(key, val, guid_list):
+    """Build pairwise GraphLink objects for one shared key/value pair."""
+    links = []
     seen = set()
 
+    if not guid_list or len(guid_list) < 2:
+        return links
+
+    for i in range(len(guid_list)):
+        for j in range(i + 1, len(guid_list)):
+            src, tgt = guid_list[i], guid_list[j]
+            edge_id = (src, tgt) if src < tgt else (tgt, src)
+            if edge_id in seen:
+                continue
+            seen.add(edge_id)
+            links.append({
+                "source": src,
+                "target": tgt,
+                "name": "shared:{}={}".format(key, val),
+                "sharedKey": key,
+                "sharedValue": val,
+            })
+
+    return links
+
+
+def _build_link_sets(kv_index, collision_links):
+    """Build GraphData-compatible link sets (one per shared key/category)."""
+    link_sets = []
+
+    # Group by key, then add edges for every shared value within that key.
+    key_to_value_map = {}
     for (key, val), guid_list in kv_index.items():
-        if len(guid_list) < 2:
-            continue
-        for i in range(len(guid_list)):
-            for j in range(i + 1, len(guid_list)):
-                src, tgt = guid_list[i], guid_list[j]
-                edge_id = (src, tgt, key, val) if src < tgt else (tgt, src, key, val)
+        key_to_value_map.setdefault(key, {})[val] = guid_list
+
+    for key in sorted(key_to_value_map.keys(), key=lambda k: str(k)):
+        value_map = key_to_value_map[key]
+        key_links = []
+        seen = set()
+
+        for val in sorted(value_map.keys(), key=lambda v: str(v)):
+            links = _build_links_for_shared_pair(key, val, value_map[val])
+            for link in links:
+                src = link.get("source")
+                tgt = link.get("target")
+                shared_val = link.get("sharedValue")
+                edge_id = (src, tgt, shared_val) if src < tgt else (tgt, src, shared_val)
                 if edge_id in seen:
                     continue
                 seen.add(edge_id)
-                links.append({
-                    "source": src,
-                    "target": tgt,
-                    "name": "shared:{}={}".format(key, val),
-                    "sharedKey": key,
-                    "sharedValue": val,
-                })
-    return links
+                key_links.append(link)
+
+        if not key_links:
+            continue
+
+        link_sets.append({
+            "set": str(key),
+            "notes": "Objects linked when they share the same value for '{}'".format(key),
+            "links": key_links,
+        })
+
+    # Keep collisions as a separate dedicated set.
+    link_sets.append({
+        "set": "collisions",
+        "notes": "Objects linked by mesh clash / proximity detection.",
+        "links": list(collision_links or []),
+    })
+
+    return link_sets
 
 
 # ---------------------------------------------------------------------------
@@ -381,6 +467,7 @@ def setup_graph(graph_name=None):
     _log("[setup_graph] Created {} collision-based link(s).".format(len(collision_links)))
 
     all_links = attr_links + collision_links
+    link_sets = _build_link_sets(kv_index, collision_links)
 
     # 4. Build & store a NetworkX graph in sc.sticky
     G = _build_networkx_graph(nodes, all_links)
@@ -390,7 +477,7 @@ def setup_graph(graph_name=None):
         "name": graph_name,
         "graph": {
             "nodes": nodes,
-            "links": all_links,
+            "links": link_sets,
         },
     }
 
