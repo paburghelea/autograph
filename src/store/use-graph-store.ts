@@ -2,6 +2,11 @@
 
 import { create } from "zustand";
 import type { GraphFile, GraphData, GraphNode } from "@/types/graph";
+import {
+  runColumnFloorTest,
+  applyColumnFloorTestToNodes,
+  type ColumnFloorTestResult,
+} from "@/lib/column-floor-test";
 
 const EMPTY_GRAPH: GraphData = { nodes: [], links: [] };
 
@@ -180,6 +185,8 @@ interface GraphStore {
   rhinoFile: File | null;
   loading: boolean;
   saving: boolean;
+  /** Last column–floor test result (score, message, etc.) */
+  columnFloorTestResult: ColumnFloorTestResult | null;
 
   // Actions
   setFiles: (files: GraphFile[]) => void;
@@ -199,6 +206,8 @@ interface GraphStore {
   deleteFile: (id: string) => Promise<void>;
   downloadRhino: () => Promise<void>;
   initWithDummyData: () => void;
+  /** Run column–floor connection test, update nodes with faulty, and persist to DB */
+  runColumnFloorTest: () => Promise<ColumnFloorTestResult>;
 }
 
 export const useGraphStore = create<GraphStore>((set, get) => ({
@@ -211,6 +220,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   rhinoFile: null,
   loading: true,
   saving: false,
+  columnFloorTestResult: null,
 
   setFiles: (files) => set({ files }),
   setCurrentFile: (currentFile) => set({ currentFile }),
@@ -230,6 +240,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       currentFile: file,
       graphData: file.graph,
       selectedNode: null,
+      columnFloorTestResult: null,
     }),
 
   fetchFiles: async () => {
@@ -371,5 +382,21 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       newGraphName: "Sample building tectonics",
       rhinoFile: null,
     });
+  },
+
+  runColumnFloorTest: async () => {
+    const { graphData, currentFile } = get();
+    const result = runColumnFloorTest(graphData);
+    const updatedGraph = applyColumnFloorTestToNodes(graphData, result);
+    set({
+      graphData: updatedGraph,
+      columnFloorTestResult: result,
+    });
+    // Write updated graph (faulty on relevant nodes) to graph_json column
+    if (currentFile?.id) {
+      const { save } = get();
+      await save();
+    }
+    return result;
   },
 }));

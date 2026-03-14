@@ -66,17 +66,24 @@ export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
   const keyValuePairs = Object.entries(node).filter(
     ([k]) => !reserved.includes(k)
   );
+  const isFaulty = node.faulty === true;
 
   return (
     <div
       className={cn(
-        "absolute right-4 top-4 z-10 w-72 rounded-lg border border-border bg-card/95 shadow-lg text-card-foreground"
+        "absolute right-4 top-4 z-10 w-72 rounded-lg border bg-card/95 shadow-lg text-card-foreground",
+        isFaulty ? "border-destructive border-2" : "border-border"
       )}
     >
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <span className="font-semibold truncate pr-2">
           {node.name ?? node.id}
         </span>
+        {isFaulty && (
+          <span className="shrink-0 rounded bg-destructive/20 px-2 py-0.5 text-xs font-medium text-destructive">
+            Faulty
+          </span>
+        )}
         <Button
           type="button"
           variant="ghost"

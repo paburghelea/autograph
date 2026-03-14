@@ -254,6 +254,8 @@ export function GraphViewer({
           ((
             n: { [others: string]: any; id?: string | number }
           ): string => {
+            if (n.faulty === true) return "#ef4444";
+
             const baseColor =
               (n.color as string | undefined) ??
               graphData?.nodes?.find(

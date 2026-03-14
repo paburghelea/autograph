@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileStack, Download, Trash2 } from "lucide-react";
+import { FileStack, Download, Trash2, FlaskConical } from "lucide-react";
 import { GraphViewer } from "@/components/GraphViewer";
 import { MetadataStylePanel } from "@/components/MetadataStylePanel";
 import { NodeDetailPanel } from "@/components/NodeDetailPanel";
@@ -44,6 +44,7 @@ export default function Home() {
     rhinoFile,
     loading,
     saving,
+    columnFloorTestResult,
     setNewGraphName,
     setRhinoFile,
     setSelectedNode,
@@ -54,6 +55,7 @@ export default function Home() {
     deleteFile,
     downloadRhino,
     initWithDummyData,
+    runColumnFloorTest,
   } = useGraphStore();
 
   const rhinoInputRef = useRef<HTMLInputElement>(null);
@@ -178,6 +180,37 @@ export default function Home() {
             >
               Save as new
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => runColumnFloorTest()}
+              title="Run column–floor connection test"
+            >
+              <FlaskConical className="size-4 shrink-0" />
+              Run test
+            </Button>
+            {columnFloorTestResult !== null && (
+              <div
+                className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm"
+                title={columnFloorTestResult.message}
+              >
+                <span className="text-muted-foreground">Score:</span>
+                <span
+                  className={
+                    columnFloorTestResult.score === 100
+                      ? "font-semibold text-green-600 dark:text-green-400"
+                      : "font-semibold text-amber-600 dark:text-amber-400"
+                  }
+                >
+                  {columnFloorTestResult.score}%
+                </span>
+                {columnFloorTestResult.totalColumns > 0 && (
+                  <span className="text-muted-foreground">
+                    ({columnFloorTestResult.passedCount}/{columnFloorTestResult.totalColumns} columns)
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </header>
 
