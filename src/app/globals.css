@@ -50,7 +50,9 @@
 }
 
 :root {
-  font-family: var(--font-geist-sans);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
 
   /* Light mode ? neutral palette (OKLCH approximations of Tailwind neutrals) */
   --background: oklch(0.985 0.003 260); /* neutral-50 */

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { GraphData, GraphNode } from "@/types/graph";
 import { useGraphStore } from "@/store/use-graph-store";
+import { getValueByPath } from "@/lib/metadata";
 import { GitBranchPlusIcon } from "lucide-react";
 
 const ForceGraph3D = dynamic(() => import("react-force-graph-3d"), {
@@ -50,25 +51,100 @@ export function GraphViewer({
   const handleNodeClick = (
     node: { id?: string | number; name?: string; [k: string]: unknown }
   ) => {
-    setSelectedNode({
-      ...node,
-      id: String(node.id ?? ""),
-    } as GraphNode);
+    const nodeId = String(node.id ?? "");
+    const fullNode = graphData.nodes.find((n) => n.id === nodeId);
+    setSelectedNode((fullNode ?? { ...node, id: nodeId }) as GraphNode);
   };
 
   const handleNodeHover = useCallback((node: { id?: string | number; name?: string; [k: string]: unknown } | null) => {
     setHoverNode(node ? { ...node, id: String(node.id ?? "") } as GraphNode : null);
   }, []);
 
-  const [activeLinkSetIndex, setActiveLinkSetIndex] = useState<number | null>(
-    null
+  const [activeLinkSetIndices, setActiveLinkSetIndices] = useState<Set<number>>(
+    () => new Set()
   );
 
   const linkSets = graphData.links ?? [];
-  const activeLinks =
-    activeLinkSetIndex === null || !linkSets[activeLinkSetIndex]
-      ? linkSets.flatMap((set) => set.links)
-      : linkSets[activeLinkSetIndex].links;
+
+  const EDGE_THICKNESS = 0.6;
+  const EDGE_OPACITY = 0.9;
+
+  // Distinct color per link set; reuse from palette when there are more sets than colors
+  const LINK_SET_COLORS = [
+    "#3b82f6", "#22c55e", "#eab308", "#ef4444", "#a855f7",
+    "#ec4899", "#06b6d4", "#f97316",
+  ];
+  const getLinkSetColor = (setIndex: number) =>
+    LINK_SET_COLORS[setIndex % LINK_SET_COLORS.length];
+
+  const hexToRgb = (hex: string) => {
+    const cleaned = hex.replace("#", "");
+    const value =
+      cleaned.length === 3
+        ? cleaned.split("").map((c) => c + c).join("")
+        : cleaned;
+    const num = parseInt(value, 16);
+    return {
+      r: (num >> 16) & 255,
+      g: (num >> 8) & 255,
+      b: num & 255,
+    };
+  };
+  const rgbToHex = (r: number, g: number, b: number) =>
+    `#${[r, g, b]
+      .map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, "0"))
+      .join("")}`;
+  const blendColors = (hexColors: string[]) => {
+    if (hexColors.length === 0) return "#64748b";
+    if (hexColors.length === 1) return hexColors[0];
+    const rgbs = hexColors.map(hexToRgb);
+    const n = rgbs.length;
+    const r = Math.round(rgbs.reduce((a, c) => a + c.r, 0) / n);
+    const g = Math.round(rgbs.reduce((a, c) => a + c.g, 0) / n);
+    const b = Math.round(rgbs.reduce((a, c) => a + c.b, 0) / n);
+    return rgbToHex(r, g, b);
+  };
+
+  const selectedSetIndices =
+    activeLinkSetIndices.size === 0
+      ? linkSets.map((_, i) => i)
+      : Array.from(activeLinkSetIndices);
+
+  const activeLinks = (() => {
+    const edgeToSetIndices = new Map<string, Set<number>>();
+    const key = (s: string, t: string) => `${s}\t${t}`;
+    for (const setIndex of selectedSetIndices) {
+      const set = linkSets[setIndex];
+      if (!set) continue;
+      for (const link of set.links) {
+        const s = String(link.source);
+        const t = String(link.target);
+        const k = key(s, t);
+        if (!edgeToSetIndices.has(k)) edgeToSetIndices.set(k, new Set());
+        edgeToSetIndices.get(k)!.add(setIndex);
+      }
+    }
+    const result: Array<{ source: string; target: string; color: string }> = [];
+    edgeToSetIndices.forEach((setIndices, k) => {
+      const [source, target] = k.split("\t");
+      const colors = Array.from(setIndices).map(getLinkSetColor);
+      result.push({ source, target, color: blendColors(colors) });
+    });
+    return result;
+  })();
+
+  const toggleLinkSetIndex = useCallback((index: number) => {
+    setActiveLinkSetIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }, []);
+
+  const selectAllLinkSets = useCallback(() => {
+    setActiveLinkSetIndices(new Set());
+  }, []);
 
   // Ensure nodes have 'id' and optional 'name' for 3d-force-graph
   const normalizedData = {
@@ -89,7 +165,7 @@ export function GraphViewer({
     let min = Number.POSITIVE_INFINITY;
     let max = Number.NEGATIVE_INFINITY;
     for (const node of normalizedData.nodes) {
-      const raw = (node as Record<string, unknown>)[attr];
+      const raw = getValueByPath(node as Record<string, unknown>, attr);
       const v = typeof raw === "number" ? raw : Number(raw);
       if (Number.isFinite(v)) {
         if (v < min) min = v;
@@ -104,28 +180,6 @@ export function GraphViewer({
 
   const colorExtent = getNumericExtent(metadataStyle.colorAttribute);
   const sizeExtent = getNumericExtent(metadataStyle.sizeAttribute);
-
-  const hexToRgb = (hex: string) => {
-    const cleaned = hex.replace("#", "");
-    const value =
-      cleaned.length === 3
-        ? cleaned
-            .split("")
-            .map((c) => c + c)
-            .join("")
-        : cleaned;
-    const num = parseInt(value, 16);
-    return {
-      r: (num >> 16) & 255,
-      g: (num >> 8) & 255,
-      b: num & 255,
-    };
-  };
-
-  const rgbToHex = (r: number, g: number, b: number) =>
-    `#${[r, g, b]
-      .map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, "0"))
-      .join("")}`;
 
   const lerpColor = (t: number, start: string, end: string) => {
     const a = hexToRgb(start);
@@ -151,26 +205,43 @@ export function GraphViewer({
 
   return (
     <div ref={containerRef} className="absolute inset-0 overflow-hidden">
-      <div className="absolute right-1 bottom-1 z-20 rounded-lg bg-background p-2 border border-border">
-        <div className="mb-1 text-xs font-medium text-muted-foreground">
-          Link set
+      <div className="absolute right-1 bottom-1 z-20 rounded-lg bg-background p-2 border border-border max-w-[min(100%,20rem)]">
+        <div className="mb-1.5 text-xs font-medium text-muted-foreground">
+          Link sets
         </div>
-        <div className="flex items-center">
-          <select
-            className="h-8 rounded-md border bg-background px-2 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            value={activeLinkSetIndex === null ? "all" : String(activeLinkSetIndex)}
-            onChange={(e) => {
-              const value = e.target.value;
-              setActiveLinkSetIndex(value === "all" ? null : Number(value));
-            }}
+        <div className="flex flex-wrap gap-1">
+          <button
+            type="button"
+            title="Show all link sets"
+            onClick={selectAllLinkSets}
+            className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+              activeLinkSetIndices.size === 0
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
           >
-            <option value="all">All</option>
-            {linkSets.map((set, index) => (
-              <option key={set.set ?? index} value={index} title={set.notes}>
-                {set.set}
-              </option>
-            ))}
-          </select>
+            All
+          </button>
+          {linkSets.map((set, index) => (
+            <button
+              key={set.set ?? index}
+              type="button"
+              title={set.notes ?? set.set}
+              onClick={() => toggleLinkSetIndex(index)}
+              className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                activeLinkSetIndices.has(index)
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              <span
+                className="size-2 shrink-0 rounded-full border border-white/30"
+                style={{ backgroundColor: getLinkSetColor(index) }}
+                aria-hidden
+              />
+              {set.set}
+            </button>
+          ))}
         </div>
       </div>
       <ForceGraph3D
@@ -179,7 +250,7 @@ export function GraphViewer({
         // height={height}
         // cooldownTicks={0}
         backgroundColor="rgba(0, 0, 0, 0)"
-        onNodeClick={handleNodeClick}
+        onNodeClick={(node) => handleNodeClick(node)}
         // onNodeHover={handleNodeHover}
         nodeColor={
           ((
@@ -196,7 +267,7 @@ export function GraphViewer({
               return baseColor as string;
             }
 
-            const raw = n[metadataStyle.colorAttribute];
+            const raw = getValueByPath(n as Record<string, unknown>, metadataStyle.colorAttribute);
             const value = typeof raw === "number" ? raw : Number(raw);
             if (!Number.isFinite(value)) return baseColor as string;
 
@@ -210,7 +281,7 @@ export function GraphViewer({
             n: { [others: string]: any }
           ): number => {
             if (!metadataStyle.sizeAttribute || !sizeExtent) return 1;
-            const raw = n[metadataStyle.sizeAttribute];
+            const raw = getValueByPath(n as Record<string, unknown>, metadataStyle.sizeAttribute);
             const value = typeof raw === "number" ? raw : Number(raw);
             if (!Number.isFinite(value)) return 1;
             const t =
@@ -222,6 +293,11 @@ export function GraphViewer({
           }) as any
         }
         linkColor={(l) => l.color ?? "#64748b"}
+        linkWidth={EDGE_THICKNESS}
+        linkOpacity={EDGE_OPACITY}
+        linkCurvature={0.2}
+        // linkDirectionalParticles={2}
+        // linkDirectionalParticleOffset={2}
       />
       {/* {hoverNode && (
         <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 font-mono text-xs text-white">

@@ -4,40 +4,18 @@ import type { JSX } from "react";
 import { useMemo } from "react";
 import { useGraphStore } from "@/store/use-graph-store";
 import { cn } from "@/lib/utils";
+import { getNumericPathsFromNodes } from "@/lib/metadata";
 
 export function MetadataStylePanel(): JSX.Element | null {
   const { graphData, metadataStyle, setMetadataStyle } = useGraphStore();
 
-  const numericKeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const node of graphData.nodes) {
-      for (const [key, value] of Object.entries(node)) {
-        if (
-          [
-            "id",
-            "name",
-            "x",
-            "y",
-            "z",
-            "vx",
-            "vy",
-            "vz",
-            "fx",
-            "fy",
-            "fz",
-            "color",
-          ].includes(key)
-        ) {
-          continue;
-        }
-        if (value === null || value === undefined) continue;
-        if (typeof value === "number") {
-          keys.add(key);
-        }
-      }
-    }
-    return Array.from(keys).sort();
-  }, [graphData.nodes]);
+  const numericKeys = useMemo(
+    () =>
+      getNumericPathsFromNodes(
+        graphData.nodes as Record<string, unknown>[]
+      ),
+    [graphData.nodes]
+  );
 
   if (!graphData.nodes.length || !numericKeys.length) {
     return null;
@@ -46,16 +24,28 @@ export function MetadataStylePanel(): JSX.Element | null {
   return (
     <div
       className={cn(
-        "absolute right-1 top-56 z-10 w-80 rounded-lg border border-border bg-card/95 shadow-lg text-card-foreground"
+        "absolute right-1 top-56 z-10 w-80 rounded-lg border border-border bg-cardtext-card-foreground"
       )}
     >
-      <div className="border-b border-border px-3 py-2">
+      <div className=" border-border px-3 py-2">
         <p className="text-xs font-semibold text-muted-foreground">
           Metadata preview
         </p>
         <p className="mt-0.5 text-[11px] text-muted-foreground/80">
           Map numeric attributes to node colors and sizes.
         </p>
+        <div className="mt-2">
+          <p className="text-[11px] font-medium text-muted-foreground mb-1">
+            Available numeric attributes
+          </p>
+          <ul className="text-[11px] text-muted-foreground/90 space-y-0.5 max-h-24 overflow-y-auto font-mono">
+            {numericKeys.map((key) => (
+              <li key={key} className="truncate" title={key}>
+                {key}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
       <div className="space-y-3 p-3 text-xs">
         <div className="space-y-1.5">
