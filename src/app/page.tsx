@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FileStack, Download, Trash2 } from "lucide-react";
 import { GraphViewer } from "@/components/GraphViewer";
+import { MetadataStylePanel } from "@/components/MetadataStylePanel";
 import { NodeDetailPanel } from "@/components/NodeDetailPanel";
 import { useGraphStore } from "@/store/use-graph-store";
 import { Button } from "@/components/ui/button";
@@ -183,6 +184,7 @@ export default function Home() {
         <GraphViewer
           graphData={graphData}
         />
+        <MetadataStylePanel />
         <NodeDetailPanel
           node={selectedNode}
           onClose={() => setSelectedNode(null)}

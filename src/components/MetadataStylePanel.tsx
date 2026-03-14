@@ -4,20 +4,24 @@ import type { JSX } from "react";
 import { useMemo } from "react";
 import { useGraphStore } from "@/store/use-graph-store";
 import { cn } from "@/lib/utils";
-import { getNumericPathsFromNodes } from "@/lib/metadata";
+import { getNumericPathsFromNodes, getNumericPathsFromLinks } from "@/lib/metadata";
 
 export function MetadataStylePanel(): JSX.Element | null {
   const { graphData, metadataStyle, setMetadataStyle } = useGraphStore();
 
-  const numericKeys = useMemo(
-    () =>
-      getNumericPathsFromNodes(
-        graphData.nodes as Record<string, unknown>[]
-      ),
-    [graphData.nodes]
-  );
+  const { nodeNumericKeys, linkNumericKeys } = useMemo(() => {
+    const nodeKeys = getNumericPathsFromNodes(
+      graphData.nodes as Record<string, unknown>[]
+    );
+    const linkKeys = getNumericPathsFromLinks(
+      graphData.links ?? []
+    );
+    return { nodeNumericKeys: nodeKeys, linkNumericKeys: linkKeys };
+  }, [graphData.nodes, graphData.links]);
 
-  if (!graphData.nodes.length || !numericKeys.length) {
+  const hasNumericData = nodeNumericKeys.length > 0 || linkNumericKeys.length > 0;
+
+  if (!graphData.nodes.length || !hasNumericData) {
     return null;
   }
 
@@ -38,13 +42,36 @@ export function MetadataStylePanel(): JSX.Element | null {
           <p className="text-[11px] font-medium text-muted-foreground mb-1">
             Available numeric attributes
           </p>
-          <ul className="text-[11px] text-muted-foreground/90 space-y-0.5 max-h-24 overflow-y-auto font-mono">
-            {numericKeys.map((key) => (
-              <li key={key} className="truncate" title={key}>
-                {key}
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-1.5 max-h-28 overflow-y-auto">
+            {nodeNumericKeys.length > 0 && (
+              <div>
+                <p className="text-[10px] font-medium text-muted-foreground/90 uppercase tracking-wide">
+                  Nodes
+                </p>
+                <ul className="text-[11px] text-muted-foreground/90 space-y-0.5 font-mono mt-0.5">
+                  {nodeNumericKeys.map((key) => (
+                    <li key={`node-${key}`} className="truncate" title={key}>
+                      {key}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {linkNumericKeys.length > 0 && (
+              <div>
+                <p className="text-[10px] font-medium text-muted-foreground/90 uppercase tracking-wide">
+                  Links
+                </p>
+                <ul className="text-[11px] text-muted-foreground/90 space-y-0.5 font-mono mt-0.5">
+                  {linkNumericKeys.map((key) => (
+                    <li key={`link-${key}`} className="truncate" title={key}>
+                      {key}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <div className="space-y-3 p-3 text-xs">
@@ -63,7 +90,7 @@ export function MetadataStylePanel(): JSX.Element | null {
               }
             >
               <option value="">None</option>
-              {numericKeys.map((key: string) => (
+              {nodeNumericKeys.map((key: string) => (
                 <option key={key} value={key}>
                   {key}
                 </option>
@@ -113,7 +140,7 @@ export function MetadataStylePanel(): JSX.Element | null {
               }
             >
               <option value="">None</option>
-              {numericKeys.map((key: string) => (
+              {nodeNumericKeys.map((key: string) => (
                 <option key={key} value={key}>
                   {key}
                 </option>

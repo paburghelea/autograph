@@ -66,6 +66,28 @@ export function getNumericPathsFromNodes(
   return Array.from(numericPaths).sort();
 }
 
+const RESERVED_LINK_KEYS = new Set(["source", "target"]);
+
+/** Get all numeric paths found in the given links (for link styling). */
+export function getNumericPathsFromLinks(
+  linkSets: { links: Record<string, unknown>[] }[]
+): string[] {
+  const numericPaths = new Set<string>();
+  const stringPaths = new Set<string>();
+  for (const set of linkSets) {
+    for (const link of set.links ?? []) {
+      collectPaths(
+        link,
+        "",
+        numericPaths,
+        stringPaths,
+        RESERVED_LINK_KEYS
+      );
+    }
+  }
+  return Array.from(numericPaths).sort();
+}
+
 /** Get a value from an object by dot-notation path (e.g. "__threeObj.geometries.0.radius"). */
 export function getValueByPath(
   obj: Record<string, unknown>,

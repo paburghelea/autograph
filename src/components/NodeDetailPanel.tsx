@@ -3,6 +3,7 @@
 import type { GraphNode } from "@/types/graph";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Hash, Quote, Braces } from "lucide-react";
 
 interface NodeDetailPanelProps {
   node: GraphNode | null;
@@ -13,6 +14,35 @@ function renderValue(value: unknown) {
   if (value == null) return "";
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
+}
+
+function MetadataTypeIcon({ value }: { value: unknown }) {
+  if (value == null) return null;
+  if (typeof value === "number") {
+    return (
+      <Hash
+        className="size-3.5 shrink-0 text-muted-foreground/70"
+        aria-label="Number"
+      />
+    );
+  }
+  if (typeof value === "string") {
+    return (
+      <Quote
+        className="size-3.5 shrink-0 text-muted-foreground/70"
+        aria-label="String"
+      />
+    );
+  }
+  if (typeof value === "object") {
+    return (
+      <Braces
+        className="size-3.5 shrink-0 text-muted-foreground/70"
+        aria-label="Object"
+      />
+    );
+  }
+  return null;
 }
 
 export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
@@ -64,7 +94,8 @@ export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
               <th className="w-24 pb-1 pr-2 text-left align-top font-medium text-muted-foreground">
                 id
               </th>
-              <td className="pb-1 align-top font-mono break-all">
+              <td className="pb-1 align-top font-mono break-all flex items-center gap-1.5">
+                <MetadataTypeIcon value={node.id} />
                 {renderValue(node.id)}
               </td>
             </tr>
@@ -74,7 +105,10 @@ export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
                   {key}
                 </th>
                 <td className="pb-1 align-top font-mono break-all">
-                  {renderValue(value)}
+                  <span className="flex items-center gap-1.5">
+                    <MetadataTypeIcon value={value} />
+                    {renderValue(value)}
+                  </span>
                 </td>
               </tr>
             ))}
