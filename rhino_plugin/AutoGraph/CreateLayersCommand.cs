@@ -13,6 +13,7 @@ public class CreateLayersCommand : Command
         CreateLayer(doc, "A-Doors", "A");
         CreateLayer(doc, "A-Windows", "A");
 
+        //
         CreateLayer(doc, "Structure");
         CreateLayer(doc, "S-Beams", "Structure");
         CreateLayer(doc, "S-Columns", "Structure");
