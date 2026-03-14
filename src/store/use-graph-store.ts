@@ -96,18 +96,58 @@ const DUMMY_GRAPH: GraphData = {
     },
   ],
   links: [
-    { source: "building", target: "structure", relation: "supported by" },
-    { source: "building", target: "envelope", relation: "enclosed by" },
-    { source: "building", target: "services", relation: "served by" },
-    { source: "structure", target: "floor-slab", relation: "carries" },
-    { source: "structure", target: "column-grid", relation: "organised by" },
-    { source: "structure", target: "core", relation: "stabilised by" },
-    { source: "envelope", target: "facade-panel", relation: "composed of" },
-    { source: "envelope", target: "glazing-unit", relation: "integrates" },
-    { source: "services", target: "hvac-plant", relation: "includes" },
-    { source: "services", target: "duct-branch", relation: "distributes via" },
-    { source: "floor-slab", target: "facade-panel", relation: "connects to" },
-    { source: "duct-branch", target: "floor-slab", relation: "runs below" },
+    {
+      set: "Systems overview",
+      notes: "High-level relationships between primary building systems.",
+      links: [
+        { source: "building", target: "structure", relation: "supported by" },
+        { source: "building", target: "envelope", relation: "enclosed by" },
+        { source: "building", target: "services", relation: "served by" },
+      ],
+    },
+    {
+      set: "Structural tectonics",
+      notes: "Structural load path and key tectonic elements.",
+      links: [
+        { source: "structure", target: "floor-slab", relation: "carries" },
+        {
+          source: "structure",
+          target: "column-grid",
+          relation: "organised by",
+        },
+        { source: "structure", target: "core", relation: "stabilised by" },
+      ],
+    },
+    {
+      set: "Envelope tectonics",
+      notes: "Façade composition and interface with structure.",
+      links: [
+        { source: "envelope", target: "facade-panel", relation: "composed of" },
+        { source: "envelope", target: "glazing-unit", relation: "integrates" },
+        {
+          source: "floor-slab",
+          target: "facade-panel",
+          relation: "connects to",
+        },
+      ],
+    },
+    {
+      set: "Services distribution",
+      notes: "MEP systems and their spatial relationships.",
+      links: [
+        { source: "services", target: "hvac-plant", relation: "includes" },
+        {
+          source: "services",
+          target: "duct-branch",
+          relation: "distributes via",
+        },
+        {
+          source: "duct-branch",
+          target: "floor-slab",
+          relation: "runs below",
+        },
+      ],
+    },
   ],
 };
 

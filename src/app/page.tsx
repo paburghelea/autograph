@@ -182,14 +182,13 @@ export default function Home() {
 
         <GraphViewer
           graphData={graphData}
-          onNodeClick={setSelectedNode}
         />
         <NodeDetailPanel
           node={selectedNode}
           onClose={() => setSelectedNode(null)}
         />
 
-        <footer className="shrink-0 border-t z-10 border-border py-2 text-center text-sm text-muted-foreground">
+        <footer className="shrink-0 w-fit absolute bottom-1 left-1 px-2 rounded-lg border z-10 border-border py-2 text-center text-sm text-muted-foreground">
           POST graph data to{" "}
           <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
             /api/data
