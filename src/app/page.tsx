@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { FileStack, Download, Trash2 } from "lucide-react";
 import { GraphViewer } from "@/components/GraphViewer";
 import { NodeDetailPanel } from "@/components/NodeDetailPanel";
+import { MetadataStylePanel } from "@/components/MetadataStylePanel";
 import { useGraphStore } from "@/store/use-graph-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -180,13 +181,12 @@ export default function Home() {
           </div>
         </header>
 
-        <GraphViewer
-          graphData={graphData}
-        />
+        <GraphViewer graphData={graphData} />
         <NodeDetailPanel
           node={selectedNode}
           onClose={() => setSelectedNode(null)}
         />
+        <MetadataStylePanel />
 
         <footer className="shrink-0 w-fit absolute bottom-1 left-1 px-2 rounded-lg border z-10 border-border py-2 text-center text-sm text-muted-foreground">
           POST graph data to{" "}

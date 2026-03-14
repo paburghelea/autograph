@@ -12,6 +12,8 @@ const DUMMY_GRAPH: GraphData = {
       name: "Building",
       category: "system",
       elementType: "overall",
+      importance: 1.0,
+      complexity: 10,
     },
     {
       id: "structure",
@@ -19,6 +21,8 @@ const DUMMY_GRAPH: GraphData = {
       category: "system",
       elementType: "structure",
       material: "reinforced concrete + steel",
+      importance: 0.9,
+      complexity: 8,
     },
     {
       id: "envelope",
@@ -26,12 +30,16 @@ const DUMMY_GRAPH: GraphData = {
       category: "system",
       elementType: "façade",
       material: "unitised curtain wall",
+      importance: 0.8,
+      complexity: 7,
     },
     {
       id: "services",
       name: "Building Services",
       category: "system",
       elementType: "MEP",
+      importance: 0.85,
+      complexity: 6,
     },
     {
       id: "floor-slab",
@@ -40,6 +48,8 @@ const DUMMY_GRAPH: GraphData = {
       elementType: "slab",
       material: "post-tensioned concrete",
       level: "typical office",
+      importance: 0.7,
+      complexity: 5,
     },
     {
       id: "column-grid",
@@ -48,6 +58,8 @@ const DUMMY_GRAPH: GraphData = {
       elementType: "column",
       material: "steel H-section",
       grid: "8m x 8m",
+      importance: 0.75,
+      complexity: 6,
     },
     {
       id: "facade-panel",
@@ -56,6 +68,8 @@ const DUMMY_GRAPH: GraphData = {
       elementType: "panel",
       material: "glass + aluminium",
       performance: "low-e double glazing",
+      importance: 0.65,
+      complexity: 4,
     },
     {
       id: "roof",
@@ -63,6 +77,8 @@ const DUMMY_GRAPH: GraphData = {
       category: "tectonic",
       elementType: "roof",
       material: "steel deck + insulation + membrane",
+      importance: 0.6,
+      complexity: 4,
     },
     {
       id: "core",
@@ -70,6 +86,8 @@ const DUMMY_GRAPH: GraphData = {
       category: "tectonic",
       elementType: "shear wall",
       material: "reinforced concrete",
+      importance: 0.9,
+      complexity: 7,
     },
     {
       id: "hvac-plant",
@@ -77,6 +95,8 @@ const DUMMY_GRAPH: GraphData = {
       category: "services",
       elementType: "air handling unit",
       location: "roof plant",
+      importance: 0.7,
+      complexity: 5,
     },
     {
       id: "duct-branch",
@@ -85,6 +105,8 @@ const DUMMY_GRAPH: GraphData = {
       elementType: "duct",
       material: "galvanised steel",
       level: "typical office",
+      importance: 0.55,
+      complexity: 3,
     },
     {
       id: "glazing-unit",
@@ -93,6 +115,8 @@ const DUMMY_GRAPH: GraphData = {
       elementType: "IGU",
       material: "double-glazed low-e",
       uValue: 1.2,
+      importance: 0.5,
+      complexity: 2,
     },
   ],
   links: [
@@ -151,6 +175,15 @@ const DUMMY_GRAPH: GraphData = {
   ],
 };
 
+interface MetadataStyle {
+  colorAttribute: string | null;
+  colorMin: string;
+  colorMax: string;
+  sizeAttribute: string | null;
+  sizeMin: number;
+  sizeMax: number;
+}
+
 interface GraphStore {
   // State
   files: GraphFile[];
@@ -161,6 +194,7 @@ interface GraphStore {
   rhinoFile: File | null;
   loading: boolean;
   saving: boolean;
+  metadataStyle: MetadataStyle;
 
   // Actions
   setFiles: (files: GraphFile[]) => void;
@@ -171,6 +205,7 @@ interface GraphStore {
   setRhinoFile: (file: File | null) => void;
   setLoading: (loading: boolean) => void;
   setSaving: (saving: boolean) => void;
+  setMetadataStyle: (update: Partial<MetadataStyle>) => void;
 
   loadFile: (file: GraphFile) => void;
   fetchFiles: () => Promise<void>;
@@ -190,6 +225,14 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   rhinoFile: null,
   loading: true,
   saving: false,
+  metadataStyle: {
+    colorAttribute: null,
+    colorMin: "#22c55e",
+    colorMax: "#ef4444",
+    sizeAttribute: null,
+    sizeMin: 1,
+    sizeMax: 8,
+  },
 
   setFiles: (files) => set({ files }),
   setCurrentFile: (currentFile) => set({ currentFile }),
@@ -199,6 +242,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   setRhinoFile: (rhinoFile) => set({ rhinoFile }),
   setLoading: (loading) => set({ loading }),
   setSaving: (saving) => set({ saving }),
+  setMetadataStyle: (update) =>
+    set((state) => ({
+      metadataStyle: { ...state.metadataStyle, ...update },
+    })),
 
   loadFile: (file) =>
     set({
