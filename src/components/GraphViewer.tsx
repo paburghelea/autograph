@@ -43,8 +43,7 @@ export function GraphViewer({
     return () => observer.disconnect();
   }, []);
 
-  const { setSelectedNode, metadataStyle, graphData: storeGraphData } =
-    useGraphStore();
+  const { setSelectedNode } = useGraphStore();
   // const width = widthProp ?? dimensions.width;
   // const height = heightProp ?? dimensions.height;
 
@@ -195,10 +194,9 @@ export function GraphViewer({
   if (normalizedData.nodes.length === 0) {
     return (
       <div
-        className="flex min-h-0 min-w-0 flex-1 items-center justify-center  gap-4 text-muted-foreground"
+        className="flex min-h-0 min-w-0 flex-1 items-center justify-center rounded-lg border border-border bg-muted/50 text-muted-foreground"
       >
-        No nodes to display
-        <GitBranchPlusIcon className="size-4" />
+        No nodes to display. Add graph data or load a saved graph.
       </div>
     );
   }

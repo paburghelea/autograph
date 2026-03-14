@@ -18,29 +18,27 @@ function renderValue(value: unknown) {
 export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
   if (!node) return null;
 
-  const reserved = [
-    "id",
-    "name",
-    "x",
-    "y",
-    "z",
-    "vx",
-    "vy",
-    "vz",
-    "fx",
-    "fy",
-    "fz",
-    "__threeObj",
-    "__ObjData",
-  ];
   const keyValuePairs = Object.entries(node).filter(
-    ([k]) => !reserved.includes(k)
+    ([k]) =>
+      ![
+        "id",
+        "name",
+        "x",
+        "y",
+        "z",
+        "vx",
+        "vy",
+        "vz",
+        "fx",
+        "fy",
+        "fz",
+      ].includes(k)
   );
 
   return (
     <div
       className={cn(
-        "absolute right-1 top-12 z-10 w-80 rounded-lg border border-border bg-card/95 shadow-lg text-card-foreground"
+        "absolute right-4 top-4 z-10 w-72 rounded-lg border border-border bg-card/95 shadow-lg text-card-foreground"
       )}
     >
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
@@ -57,24 +55,24 @@ export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
           ×
         </Button>
       </div>
-      <div className="max-h-96 overflow-y-auto p-3">
+      <div className="max-h-64 overflow-y-auto p-3">
         <table className="w-full text-xs">
           <tbody>
             <tr>
               <th className="w-24 pb-1 pr-2 text-left align-top font-medium text-muted-foreground">
                 id
               </th>
-              <td className="pb-1 align-top font-mono break-all">
-                {renderValue(node.id)}
+              <td className="pb-1 align-top">
+                {renderValueWithIcon(node.id)}
               </td>
             </tr>
             {keyValuePairs.map(([key, value]) => (
               <tr key={key}>
-                <th className="w-24 pb-1 pr-2 text-left align-top font-medium text-muted-foreground break-all">
+                <th className="w-24 pb-1 pr-2 text-left align-top font-medium text-muted-foreground">
                   {key}
                 </th>
-                <td className="pb-1 align-top font-mono break-all">
-                  {renderValue(value)}
+                <td className="pb-1 align-top">
+                  {renderValueWithIcon(value)}
                 </td>
               </tr>
             ))}
