@@ -150,7 +150,8 @@ def start_listening():
     hooked = []
     for attr, handler in _EVENTS:
         if hasattr(Rhino.RhinoDoc, attr):
-            getattr(Rhino.RhinoDoc, attr).__iadd__(handler)
+            event = getattr(Rhino.RhinoDoc, attr)
+            event += handler
             hooked.append(attr)
     sc.sticky["_obj_listener_handlers"] = list(_EVENTS)
     sc.sticky["_obj_listener_active"] = True
@@ -166,7 +167,8 @@ def stop_listening():
         for attr, handler in handlers:
             try:
                 if hasattr(Rhino.RhinoDoc, attr):
-                    getattr(Rhino.RhinoDoc, attr).__isub__(handler)
+                    event = getattr(Rhino.RhinoDoc, attr)
+                    event -= handler
             except Exception:
                 pass
         sc.sticky["_obj_listener_active"] = False

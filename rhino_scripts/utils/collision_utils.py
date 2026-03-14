@@ -1,89 +1,83 @@
 #! python3
+"""
+Standalone Mesh Clash Detection
+================================
+Runs clash detection on all (or selected) Breps in the scene and
+prints the results.  The heavy lifting is delegated to
+``setup_utils.build_collision_links`` so both this script and the
+main graph-setup pipeline share the same optimised code path.
+
+Can also be run directly to export a JSON report to disk.
+"""
+
 import Rhino
 import rhinoscriptsyntax as rs
 import scriptcontext as sc
 import os
 import json
 
-def perform_mesh_clash_detection():
-    # 1. Select all objects
-    ids = rs.GetObjects("Select Breps for Mesh Clash detection", rs.filter.polysurface)
-    if not ids: return
+try:
+    import setup_utils
+except Exception:
+    try:
+        from utils import setup_utils
+    except Exception:
+        from . import setup_utils
 
-    # 2. Select Save Folder
-    folder = rs.BrowseForFolder(message="Select folder to save the JSON report")
-    if not folder: return 
-    
-    json_path = os.path.join(folder, "Mesh_Clash_Report.json")
 
-    # 3. Setup Mesh Parameters (Low density for speed)
-    # We use 'FastRenderMesh' to get a lightweight version for testing
-    mesh_params = Rhino.Geometry.MeshingParameters.FastRenderMesh
-    
-    meshes = []
-    valid_ids = []
-    
-    print("--- Converting Breps to Meshes ---")
-    for obj_id in ids:
-        brep = rs.coercebrep(obj_id)
-        if brep:
-            # Create a mesh representation of the Brep
-            joined_mesh = Rhino.Geometry.Mesh()
-            parts = Rhino.Geometry.Mesh.CreateFromBrep(brep, mesh_params)
-            for m in parts: joined_mesh.Append(m)
-            
-            meshes.append(joined_mesh)
-            valid_ids.append(str(obj_id))
+def perform_mesh_clash_detection(export_json=True):
+    """
+    Run mesh clash detection using the shared ``build_collision_links``
+    implementation (RTree broad-phase + MeshMeshFast / MeshClash).
 
-    count = len(valid_ids)
+    Parameters
+    ----------
+    export_json : bool
+        If True, prompt the user for a save folder and write a JSON report.
+    """
+    doc = Rhino.RhinoDoc.ActiveDoc
+    if doc is None:
+        print("No active Rhino document.")
+        return
+
+    # --- Run the shared clash detection ------------------------------------
+    collision_links = setup_utils.build_collision_links(doc)
+
+    if not collision_links:
+        print("No mesh clashes found.")
+        return
+
+    # Build a bi-directional adjacency dict for reporting / selection
     clash_dict = {}
-    clash_count = 0
+    for link in collision_links:
+        src, tgt = link["source"], link["target"]
+        clash_dict.setdefault(src, []).append(tgt)
+        clash_dict.setdefault(tgt, []).append(src)
 
-    print("--- Starting Mesh Clash Detection ---")
+    clash_pair_count = len(collision_links)
+    print("\nSUCCESS: Found {} clashing mesh pair(s).".format(clash_pair_count))
 
-    # 4. Nested Loop Comparison
-    for i in range(count):
-        guid_a = valid_ids[i]
-        mesh_a = meshes[i]
-        
-        for j in range(i + 1, count):
-            guid_b = valid_ids[j]
-            mesh_b = meshes[j]
+    # --- Optional JSON export ----------------------------------------------
+    if export_json:
+        folder = rs.BrowseForFolder(message="Select folder to save the JSON report")
+        if folder:
+            json_path = os.path.join(folder, "Mesh_Clash_Report.json")
+            try:
+                with open(json_path, "w") as f:
+                    json.dump(clash_dict, f, indent=4)
+                print("Report saved to: {}".format(json_path))
+            except Exception as e:
+                print("ERROR: Failed to write JSON. {}".format(e))
 
-            # Mesh Clash returns an array of intersection polylines
-            # If the length is > 0, they are clashing
-            clash_curves = Rhino.Geometry.Intersect.Intersection.MeshMeshAccurate(
-                mesh_a, mesh_b, sc.doc.ModelAbsoluteTolerance
-            )
-
-            if clash_curves and len(clash_curves) > 0:
-                clash_count += 1
-                
-                # Bi-directional dictionary entry
-                if guid_a not in clash_dict: clash_dict[guid_a] = []
-                clash_dict[guid_a].append(guid_b)
-                
-                if guid_b not in clash_dict: clash_dict[guid_b] = []
-                clash_dict[guid_b].append(guid_a)
-
-    # 5. Export to JSON
-    if clash_dict:
-        try:
-            with open(json_path, 'w') as f_json:
-                json.dump(clash_dict, f_json, indent=4)
-            
-            print("\nSUCCESS: Found {} clashing mesh pairs.".format(clash_count))
-            print("Report saved to: {}".format(json_path))
-            
-            # Select results
-            rs.UnselectAllObjects()
-            rs.SelectObjects(clash_dict.keys())
-        except Exception as e:
-            print("ERROR: Failed to write JSON. {}".format(e))
-    else:
-        print("No Mesh clashes found.")
+    # --- Select clashing objects in the viewport ---------------------------
+    try:
+        rs.UnselectAllObjects()
+        rs.SelectObjects(list(clash_dict.keys()))
+    except Exception:
+        pass
 
     sc.doc.Views.Redraw()
+
 
 if __name__ == "__main__":
     perform_mesh_clash_detection()
