@@ -14,6 +14,16 @@ import Rhino
 import scriptcontext as sc
 try:
     # Preferred when imported as utils.setup_utils
+    from . import collision_utils
+except Exception:
+    try:
+        # Fallback when utils is available on sys.path
+        import utils.collision_utils as collision_utils
+    except Exception:
+        # Last-resort fallback
+        import collision_utils
+try:
+    # Preferred when imported as utils.setup_utils
     from . import config
 except Exception:
     try:
@@ -276,229 +286,12 @@ def _build_attribute_links(kv_index):
 
 
 # ---------------------------------------------------------------------------
-# Collision-based connections
+# Collision-based connections (delegated)
 # ---------------------------------------------------------------------------
 
-CLASH_DISTANCE = getattr(config, "CLASH_DISTANCE", 0.01)
-
-
-def _mesh_object(rhino_obj, mesh_params):
-    """
-    Return a single Rhino.Geometry.Mesh for *rhino_obj*, or None.
-
-    Handles Brep, Extrusion, Mesh, and SubD geometry types.
-    Extrusions are converted to Brep first.  SubD objects are
-    converted via ``ToSubDMesh`` or ``ToMesh`` when available.
-    """
-    geo = rhino_obj.Geometry
-    if geo is None:
-        return None
-
-    otype = geo.ObjectType
-
-    # Already a mesh --------------------------------------------------------
-    if otype == Rhino.DocObjects.ObjectType.Mesh:
-        return geo
-
-    # Brep / Polysurface / Surface ------------------------------------------
-    if otype == Rhino.DocObjects.ObjectType.Brep:
-        parts = Rhino.Geometry.Mesh.CreateFromBrep(geo, mesh_params)
-        if parts:
-            joined = Rhino.Geometry.Mesh()
-            for m in parts:
-                joined.Append(m)
-            return joined
-        return None
-
-    # Extrusion (lightweight Brep) ------------------------------------------
-    if otype == Rhino.DocObjects.ObjectType.Extrusion:
-        brep = geo.ToBrep()
-        if brep:
-            parts = Rhino.Geometry.Mesh.CreateFromBrep(brep, mesh_params)
-            if parts:
-                joined = Rhino.Geometry.Mesh()
-                for m in parts:
-                    joined.Append(m)
-                return joined
-        return None
-
-    # SubD ------------------------------------------------------------------
-    if otype == Rhino.DocObjects.ObjectType.SubD:
-        if hasattr(geo, "ToMesh"):
-            mesh = geo.ToMesh(Rhino.Geometry.MeshingParameters.Minimal)
-            if mesh:
-                return mesh
-        return None
-
-    return None
-
-
-def _mesh_all_objects(doc):
-    """
-    Iterate every object in *doc*, create a lightweight mesh for each
-    meshable object, and return parallel lists.
-
-    Returns
-    -------
-    guid_strs : list[str]
-    meshes    : list[Rhino.Geometry.Mesh]
-    """
-    mesh_params = Rhino.Geometry.MeshingParameters.Minimal
-
-    guid_strs = []
-    meshes = []
-
-    for obj in doc.Objects:
-        if obj is None:
-            continue
-        mesh = _mesh_object(obj, mesh_params)
-        if mesh is None:
-            continue
-        guid_strs.append(str(obj.Id))
-        meshes.append(mesh)
-
-    return guid_strs, meshes
-
-
-def _min_mesh_distance(mesh_a, mesh_b, max_samples=64):
-    """
-    Estimate the minimum distance between two meshes by sampling
-    vertices of *mesh_a* and finding the closest point on *mesh_b*,
-    then vice-versa.  Returns the smallest distance found.
-
-    Parameters
-    ----------
-    mesh_a, mesh_b : Rhino.Geometry.Mesh
-    max_samples : int
-        Maximum number of vertices to sample per mesh (evenly spaced).
-    """
-    best = float("inf")
-
-    for src, tgt in [(mesh_a, mesh_b), (mesh_b, mesh_a)]:
-        verts = src.Vertices
-        vert_count = verts.Count
-        if vert_count == 0:
-            continue
-        step = max(1, vert_count // max_samples)
-        for idx in range(0, vert_count, step):
-            pt = Rhino.Geometry.Point3d(verts[idx])
-            closest = tgt.ClosestPoint(pt)
-            if closest is not None and closest != Rhino.Geometry.Point3d.Unset:
-                d = pt.DistanceTo(closest)
-                if d < best:
-                    best = d
-                    if best == 0.0:
-                        return 0.0
-    return best
-
-
-def _clash_via_rtree(meshes, guid_strs, tolerance):
-    """
-    Broad-phase RTree bounding-box filter + narrow-phase collision check.
-
-    Narrow-phase:
-      1. ``MeshMeshFast`` — catches actual penetrating intersections.
-      2. If no intersection, sample-based minimum-distance check — catches
-         touching / near-miss pairs within *tolerance*.
-
-    Returns set of (guid_a, guid_b) tuples (sorted order).
-    """
-    count = len(meshes)
-    if count < 2:
-        return set()
-
-    # Pre-compute bounding boxes (un-transformed, fastest) ------------------
-    bboxes = []
-    for m in meshes:
-        bb = m.GetBoundingBox(False)
-        if tolerance > 0:
-            bb.Inflate(tolerance)
-        bboxes.append(bb)
-
-    # Build RTree from all bounding boxes -----------------------------------
-    tree = Rhino.Geometry.RTree()
-    for i, bb in enumerate(bboxes):
-        tree.Insert(bb, i)
-
-    # Query each object; callback filters j > i to avoid duplicates ---------
-    pairs = set()
-    Intersection = Rhino.Geometry.Intersect.Intersection
-
-    for i in range(count):
-        candidates = []
-
-        # Closure that captures the current index and candidate list
-        def _make_cb(idx, cands):
-            def _cb(sender, e):
-                if e.Id > idx:
-                    cands.append(e.Id)
-            return _cb
-
-        tree.Search(bboxes[i], _make_cb(i, candidates))
-
-        # Narrow-phase on candidate pairs only
-        for j in candidates:
-            hit = False
-
-            # 1) Fast intersection test (actual penetration)
-            lines = Intersection.MeshMeshFast(meshes[i], meshes[j])
-            if lines and len(lines) > 0:
-                hit = True
-
-            # 2) Distance test (touching / near-miss within tolerance)
-            if not hit and tolerance > 0:
-                dist = _min_mesh_distance(meshes[i], meshes[j])
-                if dist <= tolerance:
-                    hit = True
-
-            if hit:
-                a, b = guid_strs[i], guid_strs[j]
-                pair = (a, b) if a < b else (b, a)
-                pairs.add(pair)
-
-    return pairs
-
-
 def build_collision_links(doc):
-    """
-    Create GraphLink entries for every pair of objects whose meshes
-    collide / intersect in the scene.
-
-    Uses RTree broad-phase (bounding-box overlap) to find candidate
-    pairs in O(n log n), then confirms with ``MeshMeshFast`` narrow-
-    phase intersection.
-
-    Parameters
-    ----------
-    doc : Rhino.RhinoDoc
-        The active Rhino document.
-
-    Returns
-    -------
-    list[dict]
-        List of GraphLink dicts with ``name="collision"``.
-    """
-    guid_strs, meshes = _mesh_all_objects(doc)
-    count = len(meshes)
-    if count < 2:
-        _log("[collision] < 2 meshable objects — skipping clash detection.")
-        return []
-
-    _log("[collision] Meshed {} objects. Running clash detection "
-         "(distance={})...".format(count, CLASH_DISTANCE))
-
-    pairs = _clash_via_rtree(meshes, guid_strs, CLASH_DISTANCE)
-    _log("[collision] Found {} colliding pair(s).".format(len(pairs)))
-
-    # Build GraphLink dicts
-    links = []
-    for src, tgt in pairs:
-        links.append({
-            "source": src,
-            "target": tgt,
-            "name": "collision",
-        })
-    return links
+    """Backward-compatible wrapper delegating to ``collision_utils``."""
+    return collision_utils.build_collision_links(doc)
 
 
 # ---------------------------------------------------------------------------
@@ -584,7 +377,7 @@ def setup_graph(graph_name=None):
     _log("[setup_graph] Created {} attribute-based link(s).".format(len(attr_links)))
 
     # 3. Build links from mesh collisions
-    collision_links = build_collision_links(doc)
+    collision_links = collision_utils.build_collision_links(doc)
     _log("[setup_graph] Created {} collision-based link(s).".format(len(collision_links)))
 
     all_links = attr_links + collision_links
