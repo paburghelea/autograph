@@ -1,9 +1,13 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\epetrova.CORPORATE\\OneDrive - Foster \u002B Partners\\Documents\\EP\\ARD_Projects\\ATN_Hackathon\\AutoGraph\\",
+  "WorkspaceRootPath": "C:\\Users\\annidai\\source\\repos\\graphhopper\\rhino_plugin\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{28E1FECF-A085-4B28-A483-6E898EBFFECE}|AutoGraph\\AutoGraph.csproj|c:\\users\\epetrova.corporate\\onedrive - foster \u002B partners\\documents\\ep\\ard_projects\\atn_hackathon\\autograph\\autograph\\createlayerscommand.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{28E1FECF-A085-4B28-A483-6E898EBFFECE}|AutoGraph\\AutoGraph.csproj|c:\\users\\annidai\\source\\repos\\graphhopper\\rhino_plugin\\autograph\\writeattributecommand.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{28E1FECF-A085-4B28-A483-6E898EBFFECE}|AutoGraph\\AutoGraph.csproj|solutionrelative:autograph\\writeattributecommand.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{28E1FECF-A085-4B28-A483-6E898EBFFECE}|AutoGraph\\AutoGraph.csproj|c:\\users\\annidai\\source\\repos\\graphhopper\\rhino_plugin\\autograph\\createlayerscommand.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{28E1FECF-A085-4B28-A483-6E898EBFFECE}|AutoGraph\\AutoGraph.csproj|solutionrelative:autograph\\createlayerscommand.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
@@ -18,24 +22,33 @@
           "Children": [
             {
               "$type": "Bookmark",
-              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
             },
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "CreateLayersCommand.cs",
-              "DocumentMoniker": "C:\\Users\\epetrova.CORPORATE\\OneDrive - Foster \u002B Partners\\Documents\\EP\\ARD_Projects\\ATN_Hackathon\\AutoGraph\\AutoGraph\\CreateLayersCommand.cs",
-              "RelativeDocumentMoniker": "AutoGraph\\CreateLayersCommand.cs",
-              "ToolTip": "C:\\Users\\epetrova.CORPORATE\\OneDrive - Foster \u002B Partners\\Documents\\EP\\ARD_Projects\\ATN_Hackathon\\AutoGraph\\AutoGraph\\CreateLayersCommand.cs",
-              "RelativeToolTip": "AutoGraph\\CreateLayersCommand.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAgAAAAAAAAAA==",
+              "Title": "WriteAttributeCommand.cs",
+              "DocumentMoniker": "C:\\Users\\annidai\\source\\repos\\graphhopper\\rhino_plugin\\AutoGraph\\WriteAttributeCommand.cs",
+              "RelativeDocumentMoniker": "AutoGraph\\WriteAttributeCommand.cs",
+              "ToolTip": "C:\\Users\\annidai\\source\\repos\\graphhopper\\rhino_plugin\\AutoGraph\\WriteAttributeCommand.cs",
+              "RelativeToolTip": "AutoGraph\\WriteAttributeCommand.cs",
+              "ViewState": "AgIAACwBAAAAAAAAAAAowHYBAAAlAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-03-14T14:46:32.424Z",
+              "WhenOpened": "2026-03-14T16:11:52.616Z",
               "EditorCaption": ""
             },
             {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "CreateLayersCommand.cs",
+              "DocumentMoniker": "C:\\Users\\annidai\\source\\repos\\graphhopper\\rhino_plugin\\AutoGraph\\CreateLayersCommand.cs",
+              "RelativeDocumentMoniker": "AutoGraph\\CreateLayersCommand.cs",
+              "ToolTip": "C:\\Users\\annidai\\source\\repos\\graphhopper\\rhino_plugin\\AutoGraph\\CreateLayersCommand.cs",
+              "RelativeToolTip": "AutoGraph\\CreateLayersCommand.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-14T14:46:32.424Z",
+              "EditorCaption": ""
             }
           ]
         }

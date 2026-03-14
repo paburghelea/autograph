@@ -1,6 +1,6 @@
 is_global = true
 build_property.RootNamespace = AutoGraph
-build_property.ProjectDir = C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\
+build_property.ProjectDir = C:\Users\annidai\Source\Repos\graphhopper\rhino_plugin\AutoGraph\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.CsWinRTUseWindowsUIXamlProjections = false

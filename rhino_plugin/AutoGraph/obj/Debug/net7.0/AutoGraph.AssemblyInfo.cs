@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("Description of AutoGraph")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0+8912cfd387b9a3c036674c0948b5384ce3f660d9")]
 [assembly: System.Reflection.AssemblyProductAttribute("AutoGraph")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AutoGraph")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
