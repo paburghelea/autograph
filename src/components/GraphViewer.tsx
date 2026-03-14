@@ -43,7 +43,7 @@ export function GraphViewer({
     return () => observer.disconnect();
   }, []);
 
-  const { setSelectedNode } = useGraphStore();
+  const { setSelectedNode, metadataStyle } = useGraphStore();
   // const width = widthProp ?? dimensions.width;
   // const height = heightProp ?? dimensions.height;
 
@@ -256,7 +256,7 @@ export function GraphViewer({
           ): string => {
             const baseColor =
               (n.color as string | undefined) ??
-              (storeGraphData as GraphData | undefined)?.nodes?.find(
+              graphData?.nodes?.find(
                 (original) => original.id === n.id
               )?.color ??
               "#3b82f6";

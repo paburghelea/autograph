@@ -151,11 +151,30 @@ const DUMMY_GRAPH: GraphData = {
   ],
 };
 
+export interface MetadataStyle {
+  colorAttribute: string | null;
+  colorMin: string;
+  colorMax: string;
+  sizeAttribute: string | null;
+  sizeMin: number;
+  sizeMax: number;
+}
+
+const DEFAULT_METADATA_STYLE: MetadataStyle = {
+  colorAttribute: null,
+  colorMin: "#3b82f6",
+  colorMax: "#ef4444",
+  sizeAttribute: null,
+  sizeMin: 1,
+  sizeMax: 5,
+};
+
 interface GraphStore {
   // State
   files: GraphFile[];
   currentFile: GraphFile | null;
   graphData: GraphData;
+  metadataStyle: MetadataStyle;
   selectedNode: GraphNode | null;
   newGraphName: string;
   rhinoFile: File | null;
@@ -166,6 +185,7 @@ interface GraphStore {
   setFiles: (files: GraphFile[]) => void;
   setCurrentFile: (file: GraphFile | null) => void;
   setGraphData: (data: GraphData) => void;
+  setMetadataStyle: (style: Partial<MetadataStyle>) => void;
   setSelectedNode: (node: GraphNode | null) => void;
   setNewGraphName: (name: string) => void;
   setRhinoFile: (file: File | null) => void;
@@ -185,6 +205,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   files: [],
   currentFile: null,
   graphData: EMPTY_GRAPH,
+  metadataStyle: DEFAULT_METADATA_STYLE,
   selectedNode: null,
   newGraphName: "",
   rhinoFile: null,
@@ -194,6 +215,10 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   setFiles: (files) => set({ files }),
   setCurrentFile: (currentFile) => set({ currentFile }),
   setGraphData: (graphData) => set({ graphData }),
+  setMetadataStyle: (style) =>
+    set((state) => ({
+      metadataStyle: { ...state.metadataStyle, ...style },
+    })),
   setSelectedNode: (selectedNode) => set({ selectedNode }),
   setNewGraphName: (newGraphName) => set({ newGraphName }),
   setRhinoFile: (rhinoFile) => set({ rhinoFile }),
