@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileStack, Download, Trash2 } from "lucide-react";
 import { GraphViewer } from "@/components/GraphViewer";
 import { NodeDetailPanel } from "@/components/NodeDetailPanel";
@@ -22,6 +22,16 @@ import {
   SidebarMenuItem,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function Home() {
   const {
@@ -42,17 +52,30 @@ export default function Home() {
     saveAsNew,
     deleteFile,
     downloadRhino,
+    initWithDummyData,
   } = useGraphStore();
 
   const rhinoInputRef = useRef<HTMLInputElement>(null);
+  const [showInitDialog, setShowInitDialog] = useState(false);
 
   useEffect(() => {
     fetchFiles();
   }, [fetchFiles]);
 
+  useEffect(() => {
+    if (
+      !loading &&
+      files.length === 0 &&
+      graphData.nodes.length === 0 &&
+      graphData.links.length === 0
+    ) {
+      setShowInitDialog(true);
+    }
+  }, [loading, files.length, graphData.nodes.length, graphData.links.length]);
+
   return (
     <SidebarProvider>
-      <Sidebar>
+      <Sidebar variant="inset">
         <SidebarHeader>
           <span className="font-semibold text-sidebar-foreground">
             GraphHopper
@@ -96,10 +119,13 @@ export default function Home() {
           </SidebarGroup>
         </SidebarContent>
       </Sidebar>
-      <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-background px-4">
-          <SidebarTrigger />
-          <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
+      <SidebarInset className="relative bg-background rounded-xl border border-border">
+        <header className="flex z-10 h-14 shrink-0 items-center gap-4 px-4">
+          <div className="flex flex-1 items-center gap-3">
+            <SidebarTrigger />
+            <ThemeToggle />
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-3">
             <Input
               type="text"
               placeholder="Graph name"
@@ -154,31 +180,54 @@ export default function Home() {
           </div>
         </header>
 
-        <div className="flex flex-1 flex-col gap-4 p-4">
-          <main className="relative min-h-0 flex-1">
-            <GraphViewer
-              graphData={graphData}
-              height={600}
-              onNodeClick={setSelectedNode}
-            />
-            <NodeDetailPanel
-              node={selectedNode}
-              onClose={() => setSelectedNode(null)}
-            />
-          </main>
+        <GraphViewer
+          graphData={graphData}
+          onNodeClick={setSelectedNode}
+        />
+        <NodeDetailPanel
+          node={selectedNode}
+          onClose={() => setSelectedNode(null)}
+        />
 
-          <footer className="shrink-0 border-t border-border py-2 text-center text-sm text-muted-foreground">
-            POST graph data to{" "}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
-              /api/data
-            </code>{" "}
-            or{" "}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
-              /api/graphs
-            </code>{" "}
-            to load in the viewer.
-          </footer>
-        </div>
+        <footer className="shrink-0 border-t z-10 absolute bottom-0 left-0 right-0 border-border py-2 text-center text-sm text-muted-foreground">
+          POST graph data to{" "}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
+            /api/data
+          </code>{" "}
+          or{" "}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
+            /api/graphs
+          </code>{" "}
+          to load in the viewer.
+        </footer>
+
+        <Dialog open={showInitDialog} onOpenChange={setShowInitDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Start with a sample building graph?</DialogTitle>
+              <DialogDescription>
+                No graphs are saved yet. You can initialise the viewer with a
+                sample of building tectonics and their relationships, including
+                metadata for materials, element types, and more.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter showCloseButton>
+              <Button
+                onClick={() => {
+                  initWithDummyData();
+                  setShowInitDialog(false);
+                }}
+              >
+                Load sample building graph
+              </Button>
+              <DialogClose>
+                <Button variant="outline" type="button">
+                  Maybe later
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SidebarInset>
     </SidebarProvider>
   );

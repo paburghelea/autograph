@@ -5,6 +5,112 @@ import type { GraphFile, GraphData, GraphNode } from "@/types/graph";
 
 const EMPTY_GRAPH: GraphData = { nodes: [], links: [] };
 
+const DUMMY_GRAPH: GraphData = {
+  nodes: [
+    {
+      id: "building",
+      name: "Building",
+      category: "system",
+      elementType: "overall",
+    },
+    {
+      id: "structure",
+      name: "Structural Frame",
+      category: "system",
+      elementType: "structure",
+      material: "reinforced concrete + steel",
+    },
+    {
+      id: "envelope",
+      name: "Envelope",
+      category: "system",
+      elementType: "façade",
+      material: "unitised curtain wall",
+    },
+    {
+      id: "services",
+      name: "Building Services",
+      category: "system",
+      elementType: "MEP",
+    },
+    {
+      id: "floor-slab",
+      name: "Floor Slab",
+      category: "tectonic",
+      elementType: "slab",
+      material: "post-tensioned concrete",
+      level: "typical office",
+    },
+    {
+      id: "column-grid",
+      name: "Column Grid",
+      category: "tectonic",
+      elementType: "column",
+      material: "steel H-section",
+      grid: "8m x 8m",
+    },
+    {
+      id: "facade-panel",
+      name: "Façade Panel",
+      category: "tectonic",
+      elementType: "panel",
+      material: "glass + aluminium",
+      performance: "low-e double glazing",
+    },
+    {
+      id: "roof",
+      name: "Roof Assembly",
+      category: "tectonic",
+      elementType: "roof",
+      material: "steel deck + insulation + membrane",
+    },
+    {
+      id: "core",
+      name: "Core Shear Wall",
+      category: "tectonic",
+      elementType: "shear wall",
+      material: "reinforced concrete",
+    },
+    {
+      id: "hvac-plant",
+      name: "HVAC Plant",
+      category: "services",
+      elementType: "air handling unit",
+      location: "roof plant",
+    },
+    {
+      id: "duct-branch",
+      name: "Supply Duct Branch",
+      category: "services",
+      elementType: "duct",
+      material: "galvanised steel",
+      level: "typical office",
+    },
+    {
+      id: "glazing-unit",
+      name: "Glazing Unit",
+      category: "component",
+      elementType: "IGU",
+      material: "double-glazed low-e",
+      uValue: 1.2,
+    },
+  ],
+  links: [
+    { source: "building", target: "structure", relation: "supported by" },
+    { source: "building", target: "envelope", relation: "enclosed by" },
+    { source: "building", target: "services", relation: "served by" },
+    { source: "structure", target: "floor-slab", relation: "carries" },
+    { source: "structure", target: "column-grid", relation: "organised by" },
+    { source: "structure", target: "core", relation: "stabilised by" },
+    { source: "envelope", target: "facade-panel", relation: "composed of" },
+    { source: "envelope", target: "glazing-unit", relation: "integrates" },
+    { source: "services", target: "hvac-plant", relation: "includes" },
+    { source: "services", target: "duct-branch", relation: "distributes via" },
+    { source: "floor-slab", target: "facade-panel", relation: "connects to" },
+    { source: "duct-branch", target: "floor-slab", relation: "runs below" },
+  ],
+};
+
 interface GraphStore {
   // State
   files: GraphFile[];
@@ -32,6 +138,7 @@ interface GraphStore {
   saveAsNew: () => Promise<void>;
   deleteFile: (id: string) => Promise<void>;
   downloadRhino: () => Promise<void>;
+  initWithDummyData: () => void;
 }
 
 export const useGraphStore = create<GraphStore>((set, get) => ({
@@ -189,5 +296,15 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     } catch (e) {
       console.error(e);
     }
+  },
+
+  initWithDummyData: () => {
+    set({
+      currentFile: null,
+      graphData: DUMMY_GRAPH,
+      selectedNode: null,
+      newGraphName: "Sample building tectonics",
+      rhinoFile: null,
+    });
   },
 }));
