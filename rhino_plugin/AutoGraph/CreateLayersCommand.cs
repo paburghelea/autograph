@@ -1,4 +1,4 @@
-﻿using Rhino;
+using Rhino;
 using Rhino.Commands;
 using Rhino.DocObjects;
 
@@ -8,31 +8,84 @@ public class CreateLayersCommand : Command
 
     protected override Result RunCommand(RhinoDoc doc, RunMode mode)
     {
-        CreateLayer(doc, "A");
-        CreateLayer(doc, "A-Walls", "A");
-        CreateLayer(doc, "A-Doors", "A");
-        CreateLayer(doc, "A-Windows", "A");
+        string[] layers =
+        {
+            // BuildingElement::Function::Material 
+            "Curtainwall",
+            "Curtainwall::Facade",
+            "Curtainwall::Facade::metal",
+            "Curtainwall::Facade::glass",
 
-        CreateLayer(doc, "Structure");
-        CreateLayer(doc, "S-Beams", "Structure");
-        CreateLayer(doc, "S-Columns", "Structure");
+            "Wall",
+            "Wall::nonloadbearing",
+            "Wall::nonloadbearing::timber",
+            "Wall::core",
+            "Wall::core::steel",
+            "Wall::core::concrete",
+
+            "Stair",
+            "Stair::core",
+            "Stair::core::concrete",
+
+            "Floor",
+            "Floor::nonloadbearing",
+            "Floor::nonloadbearing::concrete",
+            "Floor::core",
+            "Floor::core::concrete",
+
+            "Foundation",
+            "Foundation::loadbearing",
+            "Foundation::loadbearing::concrete",
+
+            "Ceiling",
+            "Ceiling::Primary",
+            "Ceiling::Primary::_concrete",
+            "Ceiling::Primary::concrete",
+
+            "Column",
+            "Column::loadbearing",
+            "Column::loadbearing::column"
+        };
+
+        foreach (string layerPath in layers)
+        {
+            CreateLayerFromPath(doc, layerPath);
+        }
 
         RhinoApp.WriteLine("Layer structure created.");
         return Result.Success;
     }
 
-    private void CreateLayer(RhinoDoc doc, string name, string parent = null)
+    private void CreateLayerFromPath(RhinoDoc doc, string fullPath)
     {
-        Layer layer = new Layer();
-        layer.Name = name;
+        // If layer already exists, skip
+        if (doc.Layers.FindByFullPath(fullPath, -1) >= 0)
+            return;
 
-        if (parent != null)
+        string[] parts = fullPath.Split(new string[] { "::" }, System.StringSplitOptions.None);
+
+        string currentPath = "";
+        Layer parentLayer = null;
+
+        for (int i = 0; i < parts.Length; i++)
         {
-            int parentIndex = doc.Layers.Find(parent, true);
-            if (parentIndex >= 0)
-                layer.ParentLayerId = doc.Layers[parentIndex].Id;
-        }
+            currentPath = (i == 0) ? parts[i] : currentPath + "::" + parts[i];
 
-        doc.Layers.Add(layer);
+            int index = doc.Layers.FindByFullPath(currentPath, -1);
+            if (index >= 0)
+            {
+                parentLayer = doc.Layers[index];
+                continue;
+            }
+
+            Layer newLayer = new Layer();
+            newLayer.Name = parts[i];
+
+            if (parentLayer != null)
+                newLayer.ParentLayerId = parentLayer.Id;
+
+            int newIndex = doc.Layers.Add(newLayer);
+            parentLayer = doc.Layers[newIndex];
+        }
     }
 }
