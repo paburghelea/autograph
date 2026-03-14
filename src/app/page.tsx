@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileStack, Download, Trash2 } from "lucide-react";
+import { FileStack, Download, Trash2, FlaskConical, RefreshCw, AlertTriangle } from "lucide-react";
 import { GraphViewer } from "@/components/GraphViewer";
+import { MetadataStylePanel } from "@/components/MetadataStylePanel";
 import { NodeDetailPanel } from "@/components/NodeDetailPanel";
 import { useGraphStore } from "@/store/use-graph-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+import Image from "next/image";
 import {
   SidebarProvider,
   Sidebar,
@@ -43,6 +46,7 @@ export default function Home() {
     rhinoFile,
     loading,
     saving,
+    columnFloorTestResult,
     setNewGraphName,
     setRhinoFile,
     setSelectedNode,
@@ -53,6 +57,12 @@ export default function Home() {
     deleteFile,
     downloadRhino,
     initWithDummyData,
+    runColumnFloorTest,
+    liveUpdateMode,
+    setLiveUpdateMode,
+    checkForUpdates,
+    errorPreviewMode,
+    setErrorPreviewMode,
   } = useGraphStore();
 
   const rhinoInputRef = useRef<HTMLInputElement>(null);
@@ -61,6 +71,15 @@ export default function Home() {
   useEffect(() => {
     fetchFiles();
   }, [fetchFiles]);
+
+  // When live update is on and a file is open, poll server and pull if updated_at is newer
+  useEffect(() => {
+    if (!liveUpdateMode || !currentFile?.id) return;
+    const interval = setInterval(() => {
+      checkForUpdates();
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [liveUpdateMode, currentFile?.id, checkForUpdates]);
 
   useEffect(() => {
     if (
@@ -76,9 +95,11 @@ export default function Home() {
   return (
     <SidebarProvider>
       <Sidebar variant="inset">
-        <SidebarHeader>
-          <span className="font-semibold text-sidebar-foreground">
-            GraphHopper
+        <SidebarHeader className="flex flex-row items-center justify-start">
+          <Image className="size-6" src="/logo.png" alt="AutoGraph" width={96} height={96} />
+
+          <span className="font-semibold">
+            AutoGraph
           </span>
         </SidebarHeader>
         <SidebarContent>
@@ -124,6 +145,34 @@ export default function Home() {
           <div className="flex flex-1 items-center gap-3">
             <SidebarTrigger />
             <ThemeToggle />
+            <Button
+              variant={liveUpdateMode ? "default" : "outline"}
+              size="sm"
+              type="button"
+              onClick={() => setLiveUpdateMode(!liveUpdateMode)}
+              title={
+                liveUpdateMode
+                  ? "Live update on: graph refreshes when server has newer data"
+                  : "Turn on to refresh graph when server data is newer (checks updated_at)"
+              }
+            >
+              <RefreshCw className="size-4 shrink-0" />
+              Live {liveUpdateMode ? "on" : "off"}
+            </Button>
+            <Button
+              variant={errorPreviewMode ? "default" : "outline"}
+              size="sm"
+              type="button"
+              onClick={() => setErrorPreviewMode(!errorPreviewMode)}
+              title={
+                errorPreviewMode
+                  ? "Error preview on: faulty nodes red, non-faulty green"
+                  : "Show faulty nodes in red and non-faulty in green"
+              }
+            >
+              <AlertTriangle className="size-4 shrink-0" />
+              Error preview {errorPreviewMode ? "on" : "off"}
+            </Button>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3">
             <Input
@@ -148,7 +197,7 @@ export default function Home() {
                 type="button"
                 onClick={() => rhinoInputRef.current?.click()}
               >
-                {rhinoFile ? rhinoFile.name : currentFile?.rhinoFileName ?? "Rhino .3dm"}
+                {rhinoFile ? rhinoFile.name : currentFile?.rhinoFileName ?? "Rhino.3dm"}
               </Button>
             </>
             {currentFile?.rhinoFileBase64 && (
@@ -177,19 +226,49 @@ export default function Home() {
             >
               Save as new
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => runColumnFloorTest()}
+              title="Run column–floor connection test"
+            >
+              <FlaskConical className="size-4 shrink-0" />
+              Run test
+            </Button>
+            {columnFloorTestResult !== null && (
+              <div
+                className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm"
+                title={columnFloorTestResult.message}
+              >
+                <span className="text-muted-foreground">Score:</span>
+                <span
+                  className={
+                    columnFloorTestResult.score === 100
+                      ? "font-semibold text-green-600 dark:text-green-400"
+                      : "font-semibold text-amber-600 dark:text-amber-400"
+                  }
+                >
+                  {columnFloorTestResult.score}%
+                </span>
+                {columnFloorTestResult.totalColumns > 0 && (
+                  <span className="text-muted-foreground">
+                    ({columnFloorTestResult.passedCount}/{columnFloorTestResult.totalColumns} columns)
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </header>
 
         <GraphViewer
           graphData={graphData}
-          onNodeClick={setSelectedNode}
         />
         <NodeDetailPanel
           node={selectedNode}
           onClose={() => setSelectedNode(null)}
         />
 
-        <footer className="shrink-0 border-t z-10 border-border py-2 text-center text-sm text-muted-foreground">
+        <footer className="shrink-0 w-fit absolute bottom-1 left-1 px-2 rounded-lg border z-10 border-border py-2 text-center text-sm text-muted-foreground">
           POST graph data to{" "}
           <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
             /api/data

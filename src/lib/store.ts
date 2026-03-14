@@ -124,6 +124,7 @@ async function updateGraphFile(
   };
 
   const db = getDbClient();
+  // graph_json stores the full graph; nodes may include faulty: true for failed column-floor test
   await db.execute({
     sql: `
       UPDATE ${TABLE_NAME}

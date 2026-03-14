@@ -2,6 +2,11 @@
 
 import { create } from "zustand";
 import type { GraphFile, GraphData, GraphNode } from "@/types/graph";
+import {
+  runColumnFloorTest,
+  applyColumnFloorTestToNodes,
+  type ColumnFloorTestResult,
+} from "@/lib/column-floor-test";
 
 const EMPTY_GRAPH: GraphData = { nodes: [], links: [] };
 
@@ -96,19 +101,77 @@ const DUMMY_GRAPH: GraphData = {
     },
   ],
   links: [
-    { source: "building", target: "structure", relation: "supported by" },
-    { source: "building", target: "envelope", relation: "enclosed by" },
-    { source: "building", target: "services", relation: "served by" },
-    { source: "structure", target: "floor-slab", relation: "carries" },
-    { source: "structure", target: "column-grid", relation: "organised by" },
-    { source: "structure", target: "core", relation: "stabilised by" },
-    { source: "envelope", target: "facade-panel", relation: "composed of" },
-    { source: "envelope", target: "glazing-unit", relation: "integrates" },
-    { source: "services", target: "hvac-plant", relation: "includes" },
-    { source: "services", target: "duct-branch", relation: "distributes via" },
-    { source: "floor-slab", target: "facade-panel", relation: "connects to" },
-    { source: "duct-branch", target: "floor-slab", relation: "runs below" },
+    {
+      set: "Systems overview",
+      notes: "High-level relationships between primary building systems.",
+      links: [
+        { source: "building", target: "structure", relation: "supported by" },
+        { source: "building", target: "envelope", relation: "enclosed by" },
+        { source: "building", target: "services", relation: "served by" },
+      ],
+    },
+    {
+      set: "Structural tectonics",
+      notes: "Structural load path and key tectonic elements.",
+      links: [
+        { source: "structure", target: "floor-slab", relation: "carries" },
+        {
+          source: "structure",
+          target: "column-grid",
+          relation: "organised by",
+        },
+        { source: "structure", target: "core", relation: "stabilised by" },
+      ],
+    },
+    {
+      set: "Envelope tectonics",
+      notes: "Façade composition and interface with structure.",
+      links: [
+        { source: "envelope", target: "facade-panel", relation: "composed of" },
+        { source: "envelope", target: "glazing-unit", relation: "integrates" },
+        {
+          source: "floor-slab",
+          target: "facade-panel",
+          relation: "connects to",
+        },
+      ],
+    },
+    {
+      set: "Services distribution",
+      notes: "MEP systems and their spatial relationships.",
+      links: [
+        { source: "services", target: "hvac-plant", relation: "includes" },
+        {
+          source: "services",
+          target: "duct-branch",
+          relation: "distributes via",
+        },
+        {
+          source: "duct-branch",
+          target: "floor-slab",
+          relation: "runs below",
+        },
+      ],
+    },
   ],
+};
+
+export interface MetadataStyle {
+  colorAttribute: string | null;
+  colorMin: string;
+  colorMax: string;
+  sizeAttribute: string | null;
+  sizeMin: number;
+  sizeMax: number;
+}
+
+const DEFAULT_METADATA_STYLE: MetadataStyle = {
+  colorAttribute: null,
+  colorMin: "#3b82f6",
+  colorMax: "#ef4444",
+  sizeAttribute: null,
+  sizeMin: 1,
+  sizeMax: 5,
 };
 
 interface GraphStore {
@@ -116,16 +179,24 @@ interface GraphStore {
   files: GraphFile[];
   currentFile: GraphFile | null;
   graphData: GraphData;
+  metadataStyle: MetadataStyle;
   selectedNode: GraphNode | null;
   newGraphName: string;
   rhinoFile: File | null;
   loading: boolean;
   saving: boolean;
+  /** Last column–floor test result (score, message, etc.) */
+  columnFloorTestResult: ColumnFloorTestResult | null;
+  /** When true, periodically check server updated_at and pull new data if newer */
+  liveUpdateMode: boolean;
+  /** When true, node colors show faulty=red and non-faulty=green */
+  errorPreviewMode: boolean;
 
   // Actions
   setFiles: (files: GraphFile[]) => void;
   setCurrentFile: (file: GraphFile | null) => void;
   setGraphData: (data: GraphData) => void;
+  setMetadataStyle: (style: Partial<MetadataStyle>) => void;
   setSelectedNode: (node: GraphNode | null) => void;
   setNewGraphName: (name: string) => void;
   setRhinoFile: (file: File | null) => void;
@@ -139,21 +210,35 @@ interface GraphStore {
   deleteFile: (id: string) => Promise<void>;
   downloadRhino: () => Promise<void>;
   initWithDummyData: () => void;
+  /** Run column–floor connection test, update nodes with faulty, and persist to DB */
+  runColumnFloorTest: () => Promise<ColumnFloorTestResult>;
+  setLiveUpdateMode: (enabled: boolean) => void;
+  setErrorPreviewMode: (enabled: boolean) => void;
+  /** Fetch current file from server; if updated_at is newer, load the new data */
+  checkForUpdates: () => Promise<void>;
 }
 
 export const useGraphStore = create<GraphStore>((set, get) => ({
   files: [],
   currentFile: null,
   graphData: EMPTY_GRAPH,
+  metadataStyle: DEFAULT_METADATA_STYLE,
   selectedNode: null,
   newGraphName: "",
   rhinoFile: null,
   loading: true,
   saving: false,
+  columnFloorTestResult: null,
+  liveUpdateMode: false,
+  errorPreviewMode: false,
 
   setFiles: (files) => set({ files }),
   setCurrentFile: (currentFile) => set({ currentFile }),
   setGraphData: (graphData) => set({ graphData }),
+  setMetadataStyle: (style) =>
+    set((state) => ({
+      metadataStyle: { ...state.metadataStyle, ...style },
+    })),
   setSelectedNode: (selectedNode) => set({ selectedNode }),
   setNewGraphName: (newGraphName) => set({ newGraphName }),
   setRhinoFile: (rhinoFile) => set({ rhinoFile }),
@@ -165,6 +250,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       currentFile: file,
       graphData: file.graph,
       selectedNode: null,
+      columnFloorTestResult: null,
     }),
 
   fetchFiles: async () => {
@@ -306,5 +392,47 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       newGraphName: "Sample building tectonics",
       rhinoFile: null,
     });
+  },
+
+  runColumnFloorTest: async () => {
+    const { graphData, currentFile } = get();
+    const result = runColumnFloorTest(graphData);
+    const updatedGraph = applyColumnFloorTestToNodes(graphData, result);
+    set({
+      graphData: updatedGraph,
+      columnFloorTestResult: result,
+    });
+    // Write updated graph (faulty on relevant nodes) to graph_json column
+    if (currentFile?.id) {
+      const { save } = get();
+      await save();
+    }
+    return result;
+  },
+
+  setLiveUpdateMode: (liveUpdateMode) => set({ liveUpdateMode }),
+  setErrorPreviewMode: (errorPreviewMode) => set({ errorPreviewMode }),
+
+  checkForUpdates: async () => {
+    const { currentFile, loadFile } = get();
+    if (!currentFile?.id) return;
+    try {
+      const res = await fetch(`/api/graphs/${currentFile.id}`);
+      if (!res.ok) return;
+      const serverFile = (await res.json()) as GraphFile;
+      if (serverFile.updatedAt && currentFile.updatedAt) {
+        const serverTime = new Date(serverFile.updatedAt).getTime();
+        const localTime = new Date(currentFile.updatedAt).getTime();
+        if (serverTime > localTime) {
+          loadFile(serverFile);
+          const { files } = get();
+          set({
+            files: files.map((f) => (f.id === serverFile.id ? serverFile : f)),
+          });
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
   },
 }));

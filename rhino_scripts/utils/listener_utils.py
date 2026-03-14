@@ -1,8 +1,69 @@
+import threading
 import Rhino
 import scriptcontext as sc
 
+try:
+    from . import setup_utils
+except Exception:
+    try:
+        import utils.setup_utils as setup_utils
+    except Exception:
+        import setup_utils
+
 _log = lambda msg: Rhino.RhinoApp.WriteLine(str(msg))
 _pt = lambda p: "({:.4f}, {:.4f}, {:.4f})".format(p.X, p.Y, p.Z)
+
+# ---------------------------------------------------------------------------
+# Debounced graph rebuild
+# ---------------------------------------------------------------------------
+_DEBOUNCE_SECONDS = 1.0          # wait for rapid changes to settle
+_rebuild_timer = None            # type: threading.Timer | None
+_rebuild_lock = threading.Lock()
+_pending_full_rebuild = False    # escalate to full rebuild if geometry changed
+
+
+def _schedule_graph_rebuild(full=False):
+    """Schedule a graph update after a short debounce window.
+
+    Parameters
+    ----------
+    full : bool
+        If *True* (geometry change, add, delete, transform) a full rebuild
+        including collision detection will run.  If *False* (attribute-only
+        change) a lightweight update reusing existing collision links is used.
+        If both full and non-full events fire within the debounce window the
+        rebuild is escalated to full.
+    """
+    global _rebuild_timer, _pending_full_rebuild
+    with _rebuild_lock:
+        if full:
+            _pending_full_rebuild = True
+        if _rebuild_timer is not None:
+            _rebuild_timer.cancel()
+        _rebuild_timer = threading.Timer(_DEBOUNCE_SECONDS, _do_graph_rebuild)
+        _rebuild_timer.daemon = True
+        _rebuild_timer.start()
+
+
+def _do_graph_rebuild():
+    """Run the appropriate graph rebuild and push to API."""
+    global _rebuild_timer, _pending_full_rebuild
+    with _rebuild_lock:
+        _rebuild_timer = None
+        full = _pending_full_rebuild
+        _pending_full_rebuild = False
+    try:
+        if full:
+            _log("[listener] Geometry change — full graph rebuild...")
+            setup_utils.setup_graph()
+            _log("[listener] Full graph rebuild complete.")
+        else:
+            _log("[listener] Attribute change — lightweight graph update...")
+            setup_utils.update_graph_attributes_only()
+            _log("[listener] Lightweight update complete.")
+    except Exception as ex:
+        _log("[listener] ERROR during graph rebuild: {}".format(ex))
+
 
 # Attribute properties to diff: (label, property_name)
 _ATTR_CHECKS = [
@@ -108,15 +169,23 @@ def on_replace_object(sender, e):
     if not changed:
         _log("[ATTR] No change")
 
+    # Trigger graph rebuild: full if geometry changed, lightweight if only attributes
+    if geo_changed:
+        _schedule_graph_rebuild(full=True)
+    elif changed:
+        _schedule_graph_rebuild(full=False)
+
 
 def on_add_object(sender, e):
     obj = e.TheObject
     _log("\n[ADD] {} [{}] {}".format(obj.Attributes.Name or "(unnamed)", obj.Id, obj.Geometry.ObjectType))
+    _schedule_graph_rebuild(full=True)
 
 
 def on_delete_object(sender, e):
     obj = e.TheObject
     _log("\n[DEL] {} [{}] {}".format(obj.Attributes.Name or "(unnamed)", obj.Id, obj.Geometry.ObjectType))
+    _schedule_graph_rebuild(full=True)
 
 
 def on_transform_objects(sender, e):
@@ -133,6 +202,20 @@ def on_transform_objects(sender, e):
     else:
         _log("\n[TRANSFORM] {} obj(s) transformed (no translation).".format(n))
 
+    _schedule_graph_rebuild(full=True)
+
+
+def on_modify_attributes(sender, e):
+    """Fired when object attributes are modified directly."""
+    obj = e.RhinoObject if hasattr(e, "RhinoObject") else None
+    doc = e.Document if hasattr(e, "Document") else Rhino.RhinoDoc.ActiveDoc
+    if obj is None:
+        _log("\n[ATTR-MOD] Object attributes modified.")
+    else:
+        _log("\n[ATTR-MOD] {} [{}]".format(
+            obj.Attributes.Name or "(unnamed)", obj.Id))
+    _schedule_graph_rebuild(full=False)
+
 
 # --- Event wiring ---
 
@@ -141,6 +224,7 @@ _EVENTS = [
     ("AddRhinoObject", on_add_object),
     ("DeleteRhinoObject", on_delete_object),
     ("AfterTransformObjects", on_transform_objects),
+    ("ModifyObjectAttributes", on_modify_attributes),
 ]
 
 
@@ -150,7 +234,8 @@ def start_listening():
     hooked = []
     for attr, handler in _EVENTS:
         if hasattr(Rhino.RhinoDoc, attr):
-            getattr(Rhino.RhinoDoc, attr).__iadd__(handler)
+            event = getattr(Rhino.RhinoDoc, attr)
+            event += handler
             hooked.append(attr)
     sc.sticky["_obj_listener_handlers"] = list(_EVENTS)
     sc.sticky["_obj_listener_active"] = True
@@ -166,7 +251,8 @@ def stop_listening():
         for attr, handler in handlers:
             try:
                 if hasattr(Rhino.RhinoDoc, attr):
-                    getattr(Rhino.RhinoDoc, attr).__isub__(handler)
+                    event = getattr(Rhino.RhinoDoc, attr)
+                    event -= handler
             except Exception:
                 pass
         sc.sticky["_obj_listener_active"] = False

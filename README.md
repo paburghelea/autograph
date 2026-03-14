@@ -1,65 +1,80 @@
-# graphhopper
+# AutoGraph
 
-## Rhino plugin toolbar command
 
-The Rhino plugin includes a command named `WriteAttribute`.
+## Features
 
-- Command name in Rhino: `_WriteAttribute`
-- Toolbar button label: `Write Attribute`
-- Toolbar button macro: `! _WriteAttribute`
+- **3D graph viewer** — Interactive force-directed graph using Three.js and `react-force-graph-3d`
+- **Graph files** — Save, load, duplicate, and delete named graphs; list all saved files in a sidebar
+- **Rhino integration** — Attach and download Rhino `.3dm` files per graph
+- **Metadata styling** — Color nodes and links by numeric attributes (e.g. `uValue`, `level`)
+- **Node details** — Click a node to see its attributes in a side panel
+- **Column/floor test** — Run a built-in test that applies results to node metadata
+- **Live updates** — Optional polling to refresh when the current file changes on the server
+- **Error preview** — Toggle to highlight nodes/links with error-related metadata
+- **Dark/light theme** — Theme toggle in the UI
 
-`WriteAttribute` reads each object's layer hierarchy (current layer plus parent layers), finds the closest match in the built-in vocab lists, and writes three User Text keys:
-- `Building Element`
-- `Functional Role`
-- `Material System`
+## Tech stack
 
-`WriteAttribute` now uses alias-first matching with fuzzy fallback:
-- Alias dictionaries are applied first (strong priority).
-- If no alias matches, typo-tolerant fuzzy scoring is used.
+- **Framework:** Next.js 16, React 19
+- **3D:** Three.js, react-force-graph-3d
+- **State:** Zustand
+- **Database:** Turso (libSQL) via `@libsql/client`
+- **UI:** Tailwind CSS, shadcn/ui, Base UI, Lucide icons
 
-Edit vocab lists, aliases, and scoring logic in `rhino_plugin/AutoGraph/WriteAttributeCommand.cs`:
-- `FunctionalRoleAliases` contains explicit aliases.
-- `Building Element` and `Material System` aliases are auto-generated starters and can be refined.
+## Getting started
 
-## Autograph toolbar setup
+### Prerequisites
 
-Create a Rhino toolbar named `Autograph` with six buttons:
+- Node.js (v18+)
+- A [Turso](https://turso.tech/) database (or compatible libSQL endpoint)
 
-1. In Rhino, run `Toolbar`.
-2. Create a new toolbar named `Autograph`.
-3. Add button 1:
-   - Button text: `Create Layers`
-   - Tooltip: `Create standard AutoGraph layers`
-   - Left-click command: `! _CreateLayers`
-4. Add button 2:
-   - Button text: `Write Attribute`
-   - Tooltip: `Write AutoGraph attributes from layer hierarchy`
-   - Left-click command: `! _WriteAttribute`
-5. Add button 3:
-   - Button text: `Create Graph`
-   - Tooltip: `Create graph from the current Rhino model`
-   - Left-click command: `! _CreateGraph`
-6. Add button 4:
-   - Button text: `Start Listener`
-   - Tooltip: `Start Rhino object change listener`
-   - Left-click command: `! _StartListener`
-7. Add button 5:
-   - Button text: `Stop Listener`
-   - Tooltip: `Stop Rhino object change listener`
-   - Left-click command: `! _StopListener`
-8. Add button 6:
-   - Button text: `Inspect Collision`
-   - Tooltip: `Inspect mesh collisions and output report`
-   - Left-click command: `! _InspectCollision`
+### Environment
 
-## Verify toolbar buttons
+Create a `.env.local` (or set in your environment):
 
-- Click `Create Layers` and confirm Rhino creates the expected layer structure.
-- Click `Write Attribute` and confirm object User Text includes:
-  - `Building Element`
-  - `Functional Role`
-  - `Material System`
-- Click `Create Graph` and confirm Rhino runs `_CreateGraph`.
-- Click `Start Listener` and confirm Rhino runs `_StartListener` (executes `rhino_scripts/run_start_listener.py`).
-- Click `Stop Listener` and confirm Rhino runs `_StopListener` (executes `rhino_scripts/run_stop_listener.py`).
-- Click `Inspect Collision` and confirm Rhino runs `_InspectCollision` (executes `rhino_scripts/utils/collision_utils.py`).
+```env
+TURSO_DATABASE_URL=libsql://your-database.turso.io
+TURSO_AUTH_TOKEN=your-auth-token
+```
+
+### Install and run
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+### Scripts
+
+| Script   | Description              |
+|----------|--------------------------|
+| `npm run dev`   | Start dev server        |
+| `npm run build` | Production build       |
+| `npm run start` | Start production server |
+
+## Data model
+
+- **Graph:** `nodes` (id, name, arbitrary key-value metadata) and `links` (array of link sets; each set has `set`, optional `notes`, and `links` with `source`, `target`, optional `name`, and metadata).
+- **Graph file:** A saved record with id, name, graph JSON, optional Rhino file (base64), and timestamps. Stored in Turso in the `graph_files` table.
+
+## API
+
+- `GET /api/graphs` — List all graph files
+- `POST /api/graphs` — Create a new graph file (body: `name`, `graph`, optional `rhinoFileBase64`, `rhinoFileName`)
+- `GET /api/graphs/[id]` — Get one graph file
+- `PATCH /api/graphs/[id]` — Update name, graph, or Rhino attachment
+- `DELETE /api/graphs/[id]` — Delete a graph file
+- `GET /api/graphs/[id]/rhino` — Download the attached Rhino file
+
+## Project structure (high level)
+
+```
+src/
+├── app/           # Next.js app router (page, layout, api routes)
+├── components/    # GraphViewer, MetadataStylePanel, NodeDetailPanel, UI
+├── lib/           # store (Turso CRUD), db client, metadata helpers, column-floor-test
+├── store/         # Zustand use-graph-store
+└── types/         # graph.ts (GraphNode, GraphLink, GraphData, GraphFile, API payloads)
+```

@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GraphHopper",
+  title: "AutoGraph",
   description: "3D graph visualizer with REST API and Rhino file support",
 };
 
@@ -27,12 +27,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background`}>
       {/* <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head> */}
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background`}
+        className={`antialiased bg-background`}
       >
         <TooltipProvider>{children}</TooltipProvider>
       </body>

@@ -21,7 +21,11 @@ export interface GraphLink {
 
 export interface GraphData {
   nodes: GraphNode[];
-  links: GraphLink[];
+  links: {
+    set: string;
+    notes?: string;
+    links: GraphLink[];
+  }[];
 }
 
 /**

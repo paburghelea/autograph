@@ -27,15 +27,21 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!graph || !Array.isArray(graph.nodes)) {
+    if (
+      !graph ||
+      !Array.isArray(graph.nodes) ||
+      !Array.isArray(graph.links)
+    ) {
       return NextResponse.json(
-        { error: "Missing or invalid 'graph' (must have nodes array)" },
+        {
+          error:
+            "Missing or invalid 'graph' (must have nodes array and links array)",
+        },
         { status: 400 }
       );
     }
 
-    const links = Array.isArray(graph.links) ? graph.links : [];
-    const graphData: GraphData = { nodes: graph.nodes, links };
+    const graphData: GraphData = { nodes: graph.nodes, links: graph.links };
 
     const file = await store.createGraphFile(name, graphData, {
       rhinoFileBase64,
