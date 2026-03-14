@@ -1,0 +1,14 @@
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\bin\Debug\net7.0\AutoGraph.deps.json
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\bin\Debug\net7.0\AutoGraph.runtimeconfig.json
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\bin\Debug\net7.0\AutoGraph.rhp
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\bin\Debug\net7.0\AutoGraph.pdb
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net7.0\AutoGraph.csproj.AssemblyReference.cache
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net7.0\AutoGraph.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net7.0\AutoGraph.AssemblyInfoInputs.cache
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net7.0\AutoGraph.AssemblyInfo.cs
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net7.0\AutoGraph.csproj.CoreCompileInputs.cache
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net7.0\AutoGraph.rhp
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net7.0\refint\AutoGraph.rhp
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net7.0\AutoGraph.pdb
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net7.0\AutoGraph.genruntimeconfig.cache
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net7.0\ref\AutoGraph.rhp

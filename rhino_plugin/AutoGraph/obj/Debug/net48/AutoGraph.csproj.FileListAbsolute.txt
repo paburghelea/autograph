@@ -1,0 +1,9 @@
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\bin\Debug\net48\AutoGraph.rhp
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\bin\Debug\net48\AutoGraph.pdb
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net48\AutoGraph.csproj.AssemblyReference.cache
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net48\AutoGraph.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net48\AutoGraph.AssemblyInfoInputs.cache
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net48\AutoGraph.AssemblyInfo.cs
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net48\AutoGraph.csproj.CoreCompileInputs.cache
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net48\AutoGraph.rhp
+C:\Users\epetrova.CORPORATE\OneDrive - Foster + Partners\Documents\EP\ARD_Projects\ATN_Hackathon\AutoGraph\AutoGraph\obj\Debug\net48\AutoGraph.pdb
