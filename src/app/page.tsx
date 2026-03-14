@@ -1,161 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect } from "react";
 import { GraphViewer } from "@/components/GraphViewer";
 import { NodeDetailPanel } from "@/components/NodeDetailPanel";
-import type { GraphFile, GraphData, GraphNode } from "@/types/graph";
-
-const EMPTY_GRAPH: GraphData = { nodes: [], links: [] };
+import { useGraphStore } from "@/store/use-graph-store";
 
 export default function Home() {
-  const [files, setFiles] = useState<GraphFile[]>([]);
-  const [currentFile, setCurrentFile] = useState<GraphFile | null>(null);
-  const [graphData, setGraphData] = useState<GraphData>(EMPTY_GRAPH);
-  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [newGraphName, setNewGraphName] = useState("");
-  const [rhinoFile, setRhinoFile] = useState<File | null>(null);
-
-  const fetchFiles = useCallback(async () => {
-    try {
-      const res = await fetch("/api/graphs");
-      if (res.ok) {
-        const data = await res.json();
-        setFiles(data);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const {
+    files,
+    currentFile,
+    graphData,
+    selectedNode,
+    newGraphName,
+    rhinoFile,
+    loading,
+    saving,
+    setNewGraphName,
+    setRhinoFile,
+    setGraphData,
+    setSelectedNode,
+    loadFile,
+    fetchFiles,
+    save,
+    saveAsNew,
+    deleteFile,
+    downloadRhino,
+  } = useGraphStore();
 
   useEffect(() => {
     fetchFiles();
   }, [fetchFiles]);
-
-  const loadFile = useCallback((file: GraphFile) => {
-    setCurrentFile(file);
-    setGraphData(file.graph);
-    setSelectedNode(null);
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    if (!currentFile) return;
-    setSaving(true);
-    try {
-      let rhinoBase64: string | undefined;
-      let rhinoFileName: string | undefined;
-      if (rhinoFile) {
-        const buf = await rhinoFile.arrayBuffer();
-        const b64 = btoa(
-          new Uint8Array(buf).reduce((acc, byte) => acc + String.fromCharCode(byte), "")
-        );
-        rhinoBase64 = b64;
-        rhinoFileName = rhinoFile.name;
-      }
-      const res = await fetch(`/api/graphs/${currentFile.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newGraphName || currentFile.name,
-          graph: graphData,
-          ...(rhinoBase64 && { rhinoFileBase64: rhinoBase64, rhinoFileName }),
-        }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setCurrentFile(updated);
-        setFiles((prev) =>
-          prev.map((f) => (f.id === updated.id ? updated : f))
-        );
-        setRhinoFile(null);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSaving(false);
-    }
-  }, [currentFile, graphData, newGraphName, rhinoFile]);
-
-  const handleSaveAsNew = useCallback(async () => {
-    const name = newGraphName.trim() || `Graph ${new Date().toLocaleString()}`;
-    setSaving(true);
-    try {
-      let rhinoBase64: string | undefined;
-      let rhinoFileName: string | undefined;
-      if (rhinoFile) {
-        const buf = await rhinoFile.arrayBuffer();
-        const b64 = btoa(
-          new Uint8Array(buf).reduce((acc, byte) => acc + String.fromCharCode(byte), "")
-        );
-        rhinoBase64 = b64;
-        rhinoFileName = rhinoFile.name;
-      }
-      const res = await fetch("/api/graphs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          graph: graphData,
-          rhinoFileBase64: rhinoBase64,
-          rhinoFileName,
-        }),
-      });
-      if (res.ok) {
-        const created = await res.json();
-        setFiles((prev) => [created, ...prev]);
-        setCurrentFile(created);
-        setRhinoFile(null);
-        setNewGraphName("");
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setSaving(false);
-    }
-  }, [graphData, newGraphName, rhinoFile]);
-
-  const handleDelete = useCallback(
-    async (id: string) => {
-      if (!confirm("Delete this graph?")) return;
-      try {
-        const res = await fetch(`/api/graphs/${id}`, { method: "DELETE" });
-        if (res.ok) {
-          setFiles((prev) => prev.filter((f) => f.id !== id));
-          if (currentFile?.id === id) {
-            setCurrentFile(null);
-            setGraphData(EMPTY_GRAPH);
-          }
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    },
-    [currentFile?.id]
-  );
-
-  const downloadRhino = useCallback(async () => {
-    if (!currentFile?.id || !currentFile.rhinoFileBase64) return;
-    try {
-      const res = await fetch(`/api/graphs/${currentFile.id}/rhino`);
-      if (!res.ok) return;
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = currentFile.rhinoFileName || "model.3dm";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error(e);
-    }
-  }, [currentFile]);
-
-  const handleNodeClick = useCallback((node: GraphNode) => {
-    setSelectedNode(node);
-  }, []);
 
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
@@ -193,7 +67,7 @@ export default function Home() {
             )}
             <button
               type="button"
-              onClick={handleSave}
+              onClick={save}
               disabled={!currentFile || saving}
               className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
             >
@@ -201,7 +75,7 @@ export default function Home() {
             </button>
             <button
               type="button"
-              onClick={handleSaveAsNew}
+              onClick={saveAsNew}
               disabled={saving}
               className="rounded border border-blue-600 bg-white px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 dark:border-blue-500 dark:bg-transparent dark:hover:bg-blue-950"
             >
@@ -238,7 +112,7 @@ export default function Home() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDelete(file.id)}
+                      onClick={() => deleteFile(file.id)}
                       className="rounded p-1 text-zinc-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
                       aria-label="Delete"
                     >
@@ -255,7 +129,7 @@ export default function Home() {
           <GraphViewer
             graphData={graphData}
             height={600}
-            onNodeClick={handleNodeClick}
+            onNodeClick={setSelectedNode}
           />
           <NodeDetailPanel
             node={selectedNode}

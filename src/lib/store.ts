@@ -1,24 +1,32 @@
 /**
- * In-memory store for graph files.
- * In production you would replace this with a database.
+ * Server-side graph storage using Zustand.
+ * Used by API routes via getState().
  */
 
+import { createStore } from "zustand/vanilla";
 import type { GraphFile, GraphData } from "@/types/graph";
 import { v4 as uuidv4 } from "uuid";
 
-const store = new Map<string, GraphFile>();
+export interface GraphStoreState {
+  files: Record<string, GraphFile>;
+}
 
-export function listGraphFiles(): GraphFile[] {
-  return Array.from(store.values()).sort(
+const graphStore = createStore<GraphStoreState>(() => ({
+  files: {},
+}));
+
+function listGraphFiles(): GraphFile[] {
+  const { files } = graphStore.getState();
+  return Object.values(files).sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   );
 }
 
-export function getGraphFile(id: string): GraphFile | undefined {
-  return store.get(id);
+function getGraphFile(id: string): GraphFile | undefined {
+  return graphStore.getState().files[id];
 }
 
-export function createGraphFile(
+function createGraphFile(
   name: string,
   graph: GraphData,
   options?: { rhinoFileBase64?: string; rhinoFileName?: string }
@@ -33,15 +41,17 @@ export function createGraphFile(
     createdAt: now,
     updatedAt: now,
   };
-  store.set(file.id, file);
+  graphStore.setState((state) => ({
+    files: { ...state.files, [file.id]: file },
+  }));
   return file;
 }
 
-export function updateGraphFile(
+function updateGraphFile(
   id: string,
   updates: Partial<Pick<GraphFile, "name" | "graph" | "rhinoFileBase64" | "rhinoFileName">>
 ): GraphFile | undefined {
-  const existing = store.get(id);
+  const existing = graphStore.getState().files[id];
   if (!existing) return undefined;
 
   const updated: GraphFile = {
@@ -49,10 +59,18 @@ export function updateGraphFile(
     ...updates,
     updatedAt: new Date().toISOString(),
   };
-  store.set(id, updated);
+  graphStore.setState((state) => ({
+    files: { ...state.files, [id]: updated },
+  }));
   return updated;
 }
 
-export function deleteGraphFile(id: string): boolean {
-  return store.delete(id);
+function deleteGraphFile(id: string): boolean {
+  const { files } = graphStore.getState();
+  if (!(id in files)) return false;
+  const { [id]: _, ...rest } = files;
+  graphStore.setState({ files: rest });
+  return true;
 }
+
+export { listGraphFiles, getGraphFile, createGraphFile, updateGraphFile, deleteGraphFile };
