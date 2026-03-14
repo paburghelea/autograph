@@ -44,3 +44,15 @@ next-env.d.ts
 **/__pycache__/
 **/*.pyc
 **/venv/
+
+# Visual Studio
+.vs/
+*.suo
+
+# Build outputs
+bin/
+obj/
+
+# Rhino / .NET debug
+*.pdb
+*.log

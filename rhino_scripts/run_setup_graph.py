@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-Rhino Scene → Graph Setup
+Rhino Scene -> Graph Setup
 =========================
 Iterates over every object in the active Rhino document, collects
 user-string attributes, builds a graph (nodes = GUIDs, links =

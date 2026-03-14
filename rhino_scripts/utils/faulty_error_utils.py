@@ -4,7 +4,10 @@ find nodes marked as faulty, and place error text dots at their bbox centers in 
 """
 
 import json
-import urllib.request
+try:
+    import urllib.request as _urllib_request
+except Exception:
+    import urllib2 as _urllib_request
 
 import rhinoscriptsyntax as rs
 
@@ -28,8 +31,12 @@ def fetch_graph_by_name(graph_name):
     """Fetch graph data by name from the webapp. Returns graph dict (nodes, links) or None."""
     url_list = API_BASE_URL.rstrip("/") + GRAPH_ENDPOINT
     try:
-        with urllib.request.urlopen(url_list, timeout=15) as resp:
-            graphs_data = json.loads(resp.read().decode("utf-8"))
+        resp = _urllib_request.urlopen(url_list, timeout=15)
+        graphs_data = json.loads(resp.read().decode("utf-8"))
+        try:
+            resp.close()
+        except Exception:
+            pass
         candidates = graphs_data if isinstance(graphs_data, list) else graphs_data.get("graphs", [])
         graph_id = next(
             (g.get("id") or g.get("_id") for g in candidates if isinstance(g, dict) and g.get("name") == graph_name),
@@ -38,8 +45,12 @@ def fetch_graph_by_name(graph_name):
         if not graph_id:
             return None
         url_detail = API_BASE_URL.rstrip("/") + GRAPH_ENDPOINT.rstrip("/") + "/" + str(graph_id)
-        with urllib.request.urlopen(url_detail, timeout=15) as resp:
-            file_data = json.loads(resp.read().decode("utf-8"))
+        resp = _urllib_request.urlopen(url_detail, timeout=15)
+        file_data = json.loads(resp.read().decode("utf-8"))
+        try:
+            resp.close()
+        except Exception:
+            pass
         return file_data.get("graph") if isinstance(file_data, dict) and "graph" in file_data else file_data
     except Exception as e:
         print("Error: {}".format(e))

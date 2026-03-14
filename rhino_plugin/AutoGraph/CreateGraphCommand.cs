@@ -7,9 +7,6 @@ public class CreateGraphCommand : Command
 
     protected override Result RunCommand(RhinoDoc doc, RunMode mode)
     {
-        RhinoApp.WriteLine(
-            "[CreateGraph] Command is available. Hook your graph-build workflow here."
-        );
-        return Result.Success;
+        return PythonScriptCommandUtils.RunScriptFromRepo("rhino_scripts/run_setup_graph.py");
     }
 }

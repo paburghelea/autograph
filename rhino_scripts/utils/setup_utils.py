@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Setup utilities for building a graph from the current Rhino scene
 and pushing it to the GraphHopper API.
@@ -9,9 +10,39 @@ and pushing it to the GraphHopper API.
 """
 
 import json
-import networkx as nx
 import Rhino
 import scriptcontext as sc
+try:
+    import networkx as nx
+except Exception:
+    class _FallbackDiGraph(object):
+        """Minimal DiGraph-like fallback used when networkx is unavailable."""
+
+        def __init__(self):
+            self._nodes = {}
+            self._edges = {}
+
+        def add_node(self, node_id, **attrs):
+            self._nodes[node_id] = dict(attrs or {})
+
+        def add_edge(self, source, target, **attrs):
+            self._edges[(source, target)] = dict(attrs or {})
+
+        def number_of_nodes(self):
+            return len(self._nodes)
+
+        def number_of_edges(self):
+            return len(self._edges)
+
+        def edges(self, data=False):
+            if data:
+                return [(u, v, dict(attrs)) for (u, v), attrs in self._edges.items()]
+            return list(self._edges.keys())
+
+    class _FallbackNx(object):
+        DiGraph = _FallbackDiGraph
+
+    nx = _FallbackNx()
 try:
     # Preferred when imported as utils.setup_utils
     from . import collision_utils
@@ -49,11 +80,15 @@ GRAPH_ID_STICKY_KEY = config.GRAPH_ID_STICKY_KEY
 
 
 # ---------------------------------------------------------------------------
-# HTTP helpers (Python 3 / urllib)
+# HTTP helpers (Python 2/3 compatible urllib)
 # ---------------------------------------------------------------------------
 
-import urllib.request
-import urllib.error
+try:
+    import urllib.request as _urllib_request
+    import urllib.error as _urllib_error
+except Exception:
+    import urllib2 as _urllib_request
+    import urllib2 as _urllib_error
 
 
 def _http_request(url, method="GET", payload=None):
@@ -64,11 +99,14 @@ def _http_request(url, method="GET", payload=None):
         data = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
 
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    req = _urllib_request.Request(url, data=data, headers=headers)
+    if hasattr(req, "get_method"):
+        req.get_method = lambda: method
+    resp = None
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return resp.read().decode("utf-8")
-    except urllib.error.HTTPError as ex:
+        resp = _urllib_request.urlopen(req, timeout=15)
+        return resp.read().decode("utf-8")
+    except _urllib_error.HTTPError as ex:
         body = ""
         try:
             body = ex.read().decode("utf-8")
@@ -76,9 +114,16 @@ def _http_request(url, method="GET", payload=None):
             pass
         _log("[ERROR] {} {} failed (HTTP {}): {}".format(method, url, ex.code, body))
         raise
-    except urllib.error.URLError as ex:
-        _log("[ERROR] {} {} failed: {}".format(method, url, ex.reason))
+    except _urllib_error.URLError as ex:
+        reason = ex.reason if hasattr(ex, "reason") else str(ex)
+        _log("[ERROR] {} {} failed: {}".format(method, url, reason))
         raise
+    finally:
+        try:
+            if resp is not None:
+                resp.close()
+        except Exception:
+            pass
 
 
 def _post_json(url, payload):

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #! python3
 """
 Standalone Mesh Clash Detection
