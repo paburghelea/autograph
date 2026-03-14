@@ -23,7 +23,7 @@ Edit vocab lists, aliases, and scoring logic in `rhino_plugin/AutoGraph/WriteAtt
 
 ## Autograph toolbar setup
 
-Create a Rhino toolbar named `Autograph` with three buttons:
+Create a Rhino toolbar named `Autograph` with six buttons:
 
 1. In Rhino, run `Toolbar`.
 2. Create a new toolbar named `Autograph`.
@@ -39,6 +39,18 @@ Create a Rhino toolbar named `Autograph` with three buttons:
    - Button text: `Create Graph`
    - Tooltip: `Create graph from the current Rhino model`
    - Left-click command: `! _CreateGraph`
+6. Add button 4:
+   - Button text: `Start Listener`
+   - Tooltip: `Start Rhino object change listener`
+   - Left-click command: `! _StartListener`
+7. Add button 5:
+   - Button text: `Stop Listener`
+   - Tooltip: `Stop Rhino object change listener`
+   - Left-click command: `! _StopListener`
+8. Add button 6:
+   - Button text: `Inspect Collision`
+   - Tooltip: `Inspect mesh collisions and output report`
+   - Left-click command: `! _InspectCollision`
 
 ## Verify toolbar buttons
 
@@ -48,3 +60,6 @@ Create a Rhino toolbar named `Autograph` with three buttons:
   - `Functional Role`
   - `Material System`
 - Click `Create Graph` and confirm Rhino runs `_CreateGraph`.
+- Click `Start Listener` and confirm Rhino runs `_StartListener` (executes `rhino_scripts/run_start_listener.py`).
+- Click `Stop Listener` and confirm Rhino runs `_StopListener` (executes `rhino_scripts/run_stop_listener.py`).
+- Click `Inspect Collision` and confirm Rhino runs `_InspectCollision` (executes `rhino_scripts/utils/collision_utils.py`).
