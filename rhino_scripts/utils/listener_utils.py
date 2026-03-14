@@ -1,8 +1,49 @@
+import threading
 import Rhino
 import scriptcontext as sc
 
+try:
+    from . import setup_utils
+except Exception:
+    try:
+        import utils.setup_utils as setup_utils
+    except Exception:
+        import setup_utils
+
 _log = lambda msg: Rhino.RhinoApp.WriteLine(str(msg))
 _pt = lambda p: "({:.4f}, {:.4f}, {:.4f})".format(p.X, p.Y, p.Z)
+
+# ---------------------------------------------------------------------------
+# Debounced graph rebuild
+# ---------------------------------------------------------------------------
+_DEBOUNCE_SECONDS = 1.0          # wait for rapid changes to settle
+_rebuild_timer = None            # type: threading.Timer | None
+_rebuild_lock = threading.Lock()
+
+
+def _schedule_graph_rebuild():
+    """Schedule a full graph rebuild after a short debounce window."""
+    global _rebuild_timer
+    with _rebuild_lock:
+        if _rebuild_timer is not None:
+            _rebuild_timer.cancel()
+        _rebuild_timer = threading.Timer(_DEBOUNCE_SECONDS, _do_graph_rebuild)
+        _rebuild_timer.daemon = True
+        _rebuild_timer.start()
+
+
+def _do_graph_rebuild():
+    """Run the full graph rebuild and push to API."""
+    global _rebuild_timer
+    with _rebuild_lock:
+        _rebuild_timer = None
+    try:
+        _log("[listener] Change detected — rebuilding graph...")
+        setup_utils.setup_graph()
+        _log("[listener] Graph rebuild complete.")
+    except Exception as ex:
+        _log("[listener] ERROR during graph rebuild: {}".format(ex))
+
 
 # Attribute properties to diff: (label, property_name)
 _ATTR_CHECKS = [
@@ -108,15 +149,21 @@ def on_replace_object(sender, e):
     if not changed:
         _log("[ATTR] No change")
 
+    # Trigger graph rebuild on any object replacement
+    if geo_changed or changed:
+        _schedule_graph_rebuild()
+
 
 def on_add_object(sender, e):
     obj = e.TheObject
     _log("\n[ADD] {} [{}] {}".format(obj.Attributes.Name or "(unnamed)", obj.Id, obj.Geometry.ObjectType))
+    _schedule_graph_rebuild()
 
 
 def on_delete_object(sender, e):
     obj = e.TheObject
     _log("\n[DEL] {} [{}] {}".format(obj.Attributes.Name or "(unnamed)", obj.Id, obj.Geometry.ObjectType))
+    _schedule_graph_rebuild()
 
 
 def on_transform_objects(sender, e):
@@ -132,6 +179,8 @@ def on_transform_objects(sender, e):
         _log("\n[MOVE] {} obj(s) vector ({:.4f}, {:.4f}, {:.4f}) dist {:.4f}".format(n, tx, ty, tz, dist))
     else:
         _log("\n[TRANSFORM] {} obj(s) transformed (no translation).".format(n))
+
+    _schedule_graph_rebuild()
 
 
 # --- Event wiring ---
