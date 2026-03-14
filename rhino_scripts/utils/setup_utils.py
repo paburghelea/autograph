@@ -592,26 +592,12 @@ def setup_graph(graph_name=None):
     # 4. Build & store a NetworkX graph in sc.sticky
     G = _build_networkx_graph(nodes, all_links)
 
-    # 5. Assemble CreateGraphPayload (links grouped into named sets)
-    link_sets = []
-    if attr_links:
-        link_sets.append({
-            "set": "attributes",
-            "notes": "Edges between objects sharing the same user-string key-value pair",
-            "links": attr_links,
-        })
-    if collision_links:
-        link_sets.append({
-            "set": "collisions",
-            "notes": "Edges between objects whose meshes collide (distance={})".format(CLASH_DISTANCE),
-            "links": collision_links,
-        })
-
+    # 5. Assemble CreateGraphPayload
     payload = {
         "name": graph_name,
         "graph": {
             "nodes": nodes,
-            "links": link_sets,
+            "links": all_links,
         },
     }
 
