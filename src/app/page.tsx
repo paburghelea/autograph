@@ -1,9 +1,27 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { FileStack, Download, Trash2 } from "lucide-react";
 import { GraphViewer } from "@/components/GraphViewer";
 import { NodeDetailPanel } from "@/components/NodeDetailPanel";
 import { useGraphStore } from "@/store/use-graph-store";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuAction,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 
 export default function Home() {
   const {
@@ -17,7 +35,6 @@ export default function Home() {
     saving,
     setNewGraphName,
     setRhinoFile,
-    setGraphData,
     setSelectedNode,
     loadFile,
     fetchFiles,
@@ -27,121 +44,142 @@ export default function Home() {
     downloadRhino,
   } = useGraphStore();
 
+  const rhinoInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     fetchFiles();
   }, [fetchFiles]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4">
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+    <SidebarProvider>
+      <Sidebar>
+        <SidebarHeader>
+          <span className="font-semibold text-sidebar-foreground">
             GraphHopper
-          </h1>
-          <div className="flex flex-wrap items-center gap-3">
-            <input
+          </span>
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Saved graphs</SidebarGroupLabel>
+            <SidebarGroupContent>
+              {loading ? (
+                <p className="px-2 py-4 text-sm text-muted-foreground">
+                  Loading…
+                </p>
+              ) : files.length === 0 ? (
+                <p className="px-2 py-4 text-sm text-muted-foreground">
+                  No graphs yet.
+                </p>
+              ) : (
+                <SidebarMenu>
+                  {files.map((file) => (
+                    <SidebarMenuItem key={file.id}>
+                      <SidebarMenuButton
+                        isActive={currentFile?.id === file.id}
+                        onClick={() => loadFile(file)}
+                      >
+                        <FileStack className="size-4 shrink-0" />
+                        <span className="truncate">{file.name}</span>
+                      </SidebarMenuButton>
+                      <SidebarMenuAction
+                        onClick={() => deleteFile(file.id)}
+                        showOnHover
+                        aria-label="Delete graph"
+                      >
+                        <Trash2 className="size-4" />
+                      </SidebarMenuAction>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              )}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
+      <SidebarInset>
+        <header className="flex h-14 shrink-0 items-center gap-4 border-b border-border bg-background px-4">
+          <SidebarTrigger />
+          <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
+            <Input
               type="text"
               placeholder="Graph name"
               value={newGraphName || (currentFile?.name ?? "")}
               onChange={(e) => setNewGraphName(e.target.value)}
-              className="rounded border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+              className="h-8 w-48"
             />
-            <label className="flex cursor-pointer items-center gap-2 rounded border border-zinc-300 bg-white px-3 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800">
-              <span className="text-zinc-600 dark:text-zinc-400">Rhino .3dm</span>
+            <>
               <input
+                ref={rhinoInputRef}
                 type="file"
                 accept=".3dm"
                 className="hidden"
                 onChange={(e) => setRhinoFile(e.target.files?.[0] ?? null)}
+                aria-hidden
               />
-              {rhinoFile ? rhinoFile.name : currentFile?.rhinoFileName ?? "—"}
-            </label>
-            {currentFile?.rhinoFileBase64 && (
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 type="button"
-                onClick={downloadRhino}
-                className="rounded border border-zinc-300 bg-zinc-100 px-3 py-1.5 text-sm hover:bg-zinc-200 dark:border-zinc-600 dark:bg-zinc-700 dark:hover:bg-zinc-600"
+                onClick={() => rhinoInputRef.current?.click()}
               >
+                {rhinoFile ? rhinoFile.name : currentFile?.rhinoFileName ?? "Rhino .3dm"}
+              </Button>
+            </>
+            {currentFile?.rhinoFileBase64 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={downloadRhino}
+                aria-label="Download Rhino file"
+              >
+                <Download className="size-4 shrink-0" />
                 Download Rhino
-              </button>
+              </Button>
             )}
-            <button
-              type="button"
+            <Button
+              size="sm"
               onClick={save}
               disabled={!currentFile || saving}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? "Saving…" : "Save"}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={saveAsNew}
               disabled={saving}
-              className="rounded border border-blue-600 bg-white px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 dark:border-blue-500 dark:bg-transparent dark:hover:bg-blue-950"
             >
               Save as new
-            </button>
+            </Button>
           </div>
+        </header>
+
+        <div className="flex flex-1 flex-col gap-4 p-4">
+          <main className="relative min-h-0 flex-1">
+            <GraphViewer
+              graphData={graphData}
+              height={600}
+              onNodeClick={setSelectedNode}
+            />
+            <NodeDetailPanel
+              node={selectedNode}
+              onClose={() => setSelectedNode(null)}
+            />
+          </main>
+
+          <footer className="shrink-0 border-t border-border py-2 text-center text-sm text-muted-foreground">
+            POST graph data to{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
+              /api/data
+            </code>{" "}
+            or{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
+              /api/graphs
+            </code>{" "}
+            to load in the viewer.
+          </footer>
         </div>
-      </header>
-
-      <div className="flex flex-1 gap-4 p-4">
-        <aside className="w-64 shrink-0 overflow-y-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <div className="p-3">
-            <h2 className="mb-2 font-semibold text-zinc-900 dark:text-zinc-100">
-              Saved graphs
-            </h2>
-            {loading ? (
-              <p className="text-sm text-zinc-500">Loading…</p>
-            ) : files.length === 0 ? (
-              <p className="text-sm text-zinc-500">No graphs yet.</p>
-            ) : (
-              <ul className="space-y-1">
-                {files.map((file) => (
-                  <li key={file.id} className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => loadFile(file)}
-                      className={`flex-1 truncate rounded px-2 py-1.5 text-left text-sm ${
-                        currentFile?.id === file.id
-                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200"
-                          : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                      }`}
-                    >
-                      {file.name}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteFile(file.id)}
-                      className="rounded p-1 text-zinc-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-                      aria-label="Delete"
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </aside>
-
-        <main className="relative min-w-0 flex-1">
-          <GraphViewer
-            graphData={graphData}
-            height={600}
-            onNodeClick={setSelectedNode}
-          />
-          <NodeDetailPanel
-            node={selectedNode}
-            onClose={() => setSelectedNode(null)}
-          />
-        </main>
-      </div>
-
-      <footer className="border-t border-zinc-200 bg-white px-4 py-2 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900">
-        POST graph data to <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">/api/data</code> or{" "}
-        <code className="rounded bg-zinc-100 px-1 dark:bg-zinc-800">/api/graphs</code> to load in the viewer.
-      </footer>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
