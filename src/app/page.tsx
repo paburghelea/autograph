@@ -197,7 +197,7 @@ export default function Home() {
                 type="button"
                 onClick={() => rhinoInputRef.current?.click()}
               >
-                {rhinoFile ? rhinoFile.name : currentFile?.rhinoFileName ?? "Rhino .3dm"}
+                {rhinoFile ? rhinoFile.name : currentFile?.rhinoFileName ?? "Rhino.3dm"}
               </Button>
             </>
             {currentFile?.rhinoFileBase64 && (

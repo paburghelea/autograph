@@ -71,12 +71,12 @@ export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
   return (
     <div
       className={cn(
-        "absolute right-4 top-4 z-10 w-72 rounded-lg border bg-card/95 shadow-lg text-card-foreground",
+        "absolute right-1 top-16 z-10  rounded-xl border bg-background max-w-[min(100%,20rem)] text-card-foreground",
         isFaulty ? "border-destructive border-2" : "border-border"
       )}
     >
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
-        <span className="font-semibold truncate pr-2">
+        <span className="font-semibold text-sm truncate pr-2">
           {node.name ?? node.id}
         </span>
         {isFaulty && (
@@ -98,7 +98,7 @@ export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
         <table className="w-full text-xs">
           <tbody>
             <tr>
-              <th className="w-24 pb-1 pr-2 text-left align-top font-medium text-muted-foreground">
+              <th className="w-24 pb-1 pr-2 text-left align-top font-medium text-muted-foreground text-xs">
                 id
               </th>
               <td className="pb-1 align-top font-mono break-all flex items-center gap-1.5">
@@ -108,13 +108,13 @@ export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
             </tr>
             {keyValuePairs.map(([key, value]) => (
               <tr key={key}>
-                <th className="w-24 pb-1 pr-2 text-left align-top font-medium text-muted-foreground break-all">
+                <th className="w-24 pb-1 pr-2 text-left align-top font-medium text-muted-foreground break-all text-xs truncate no-wrap whitespace-nowrap">
                   {key}
                 </th>
-                <td className="pb-1 align-top font-mono break-all">
+                <td className="pb-1 align-top font-mono break-all text-xs truncate no-wrap whitespace-nowrap">
                   <span className="flex items-center gap-1.5">
                     <MetadataTypeIcon value={value} />
-                    {renderValue(value)}
+                    <span className="truncate no-wrap whitespace-nowrap w-full">{renderValue(value)}</span>
                   </span>
                 </td>
               </tr>

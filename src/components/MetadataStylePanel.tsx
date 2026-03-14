@@ -27,6 +27,7 @@ export function MetadataStylePanel(): JSX.Element | null {
   return (
     <
     >
+    
       <div className=" border-border  py-2">
         <p className="text-xs font-semibold text-muted-foreground">
           Metadata preview
