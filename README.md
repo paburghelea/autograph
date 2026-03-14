@@ -1,4 +1,4 @@
-# GraphHopper
+# AutoGraph
 
 
 ## Features

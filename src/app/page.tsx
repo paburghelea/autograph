@@ -96,10 +96,10 @@ export default function Home() {
     <SidebarProvider>
       <Sidebar variant="inset">
         <SidebarHeader className="flex flex-row items-center justify-start">
-          <Image className="size-6" src="/logo.png" alt="GraphHopper" width={96} height={96} />
+          <Image className="size-6" src="/logo.png" alt="AutoGraph" width={96} height={96} />
 
           <span className="font-semibold">
-            GraphHopper
+            AutoGraph
           </span>
         </SidebarHeader>
         <SidebarContent>

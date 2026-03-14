@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GraphHopper",
+  title: "AutoGraph",
   description: "3D graph visualizer with REST API and Rhino file support",
 };
 
