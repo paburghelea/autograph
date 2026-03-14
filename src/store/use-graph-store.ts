@@ -187,6 +187,8 @@ interface GraphStore {
   saving: boolean;
   /** Last column–floor test result (score, message, etc.) */
   columnFloorTestResult: ColumnFloorTestResult | null;
+  /** When true, periodically check server updated_at and pull new data if newer */
+  liveUpdateMode: boolean;
 
   // Actions
   setFiles: (files: GraphFile[]) => void;
@@ -208,6 +210,9 @@ interface GraphStore {
   initWithDummyData: () => void;
   /** Run column–floor connection test, update nodes with faulty, and persist to DB */
   runColumnFloorTest: () => Promise<ColumnFloorTestResult>;
+  setLiveUpdateMode: (enabled: boolean) => void;
+  /** Fetch current file from server; if updated_at is newer, load the new data */
+  checkForUpdates: () => Promise<void>;
 }
 
 export const useGraphStore = create<GraphStore>((set, get) => ({
@@ -221,6 +226,7 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   loading: true,
   saving: false,
   columnFloorTestResult: null,
+  liveUpdateMode: false,
 
   setFiles: (files) => set({ files }),
   setCurrentFile: (currentFile) => set({ currentFile }),
@@ -398,5 +404,30 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       await save();
     }
     return result;
+  },
+
+  setLiveUpdateMode: (liveUpdateMode) => set({ liveUpdateMode }),
+
+  checkForUpdates: async () => {
+    const { currentFile, loadFile } = get();
+    if (!currentFile?.id) return;
+    try {
+      const res = await fetch(`/api/graphs/${currentFile.id}`);
+      if (!res.ok) return;
+      const serverFile = (await res.json()) as GraphFile;
+      if (serverFile.updatedAt && currentFile.updatedAt) {
+        const serverTime = new Date(serverFile.updatedAt).getTime();
+        const localTime = new Date(currentFile.updatedAt).getTime();
+        if (serverTime > localTime) {
+          loadFile(serverFile);
+          const { files } = get();
+          set({
+            files: files.map((f) => (f.id === serverFile.id ? serverFile : f)),
+          });
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
   },
 }));

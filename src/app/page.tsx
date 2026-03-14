@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileStack, Download, Trash2, FlaskConical } from "lucide-react";
+import { FileStack, Download, Trash2, FlaskConical, RefreshCw } from "lucide-react";
 import { GraphViewer } from "@/components/GraphViewer";
 import { MetadataStylePanel } from "@/components/MetadataStylePanel";
 import { NodeDetailPanel } from "@/components/NodeDetailPanel";
@@ -56,6 +56,9 @@ export default function Home() {
     downloadRhino,
     initWithDummyData,
     runColumnFloorTest,
+    liveUpdateMode,
+    setLiveUpdateMode,
+    checkForUpdates,
   } = useGraphStore();
 
   const rhinoInputRef = useRef<HTMLInputElement>(null);
@@ -64,6 +67,15 @@ export default function Home() {
   useEffect(() => {
     fetchFiles();
   }, [fetchFiles]);
+
+  // When live update is on and a file is open, poll server and pull if updated_at is newer
+  useEffect(() => {
+    if (!liveUpdateMode || !currentFile?.id) return;
+    const interval = setInterval(() => {
+      checkForUpdates();
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [liveUpdateMode, currentFile?.id, checkForUpdates]);
 
   useEffect(() => {
     if (
@@ -127,6 +139,20 @@ export default function Home() {
           <div className="flex flex-1 items-center gap-3">
             <SidebarTrigger />
             <ThemeToggle />
+            <Button
+              variant={liveUpdateMode ? "default" : "outline"}
+              size="sm"
+              type="button"
+              onClick={() => setLiveUpdateMode(!liveUpdateMode)}
+              title={
+                liveUpdateMode
+                  ? "Live update on: graph refreshes when server has newer data"
+                  : "Turn on to refresh graph when server data is newer (checks updated_at)"
+              }
+            >
+              <RefreshCw className="size-4 shrink-0" />
+              Live update {liveUpdateMode ? "on" : "off"}
+            </Button>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-3">
             <Input
