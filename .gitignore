@@ -44,3 +44,7 @@ next-env.d.ts
 **/__pycache__/
 **/*.pyc
 **/venv/
+
+# rhino plugin build artifacts
+rhino_plugin/**/obj/
+rhino_plugin/**/bin/
