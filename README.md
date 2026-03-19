@@ -1,8 +1,57 @@
 # AutoGraph
 
+Winner of Best Overall Hack at the AEC Tech 2026 Hackathon, this project enables the automated generation of analysis graphs from Rhinoceros 3D architectural models and the visualisation though a cutom web application.
+
+<div>
+  <img src="https://img.shields.io/badge/Next.js-16-black?style=flat&logo=nextdotjs" alt="Next.js" />
+  <img src="https://img.shields.io/badge/React-19-black?style=flat&logo=react" alt="React" />
+  <img src="https://img.shields.io/badge/Three.js-000000?style=flat&logo=three.js&logoColor=white" alt="Three.js" />
+  <img src="https://img.shields.io/badge/Tailwind%20CSS-38bdf8?style=flat&logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/TypeScript-3178c6?style=flat&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Turso-libsql-brightgreen?style=flat&logo=libsql" alt="Turso / libSQL" />
+  <img src="https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/Rhinoceros 3D-000000?style=flat&logo=rhinoceros&logoColor=white" alt="Rhino (Rhino3D)" />
+  <img src="https://img.shields.io/badge/AEC%20Tech%202026-Best%20Overall%20Hack-ff69b4?style=flat" alt="Prize" />
+</div>
+
+
+## Contributors
+Special thanks to all the hackathon project contributors, withouth wich this would not have been possible:
+- [Paul-Andrei Burghelea](https://www.linkedin.com/in/paburghelea) — Foster + Partners
+- [Christoph Geiger](https://www.linkedin.com/in/christoph-geiger-08b673221/) — Zaha Hadid Architects
+- [Jayanaveenaa Periyasamy](https://www.linkedin.com/in/jayanaveenaa-periyasamy/) — Zaha Hadid Architects
+- [Anni Dai](https://www.linkedin.com/in/anni-dai12) — Heatherwick Studio
+- [Elena Petrova](https://www.linkedin.com/in/elena-petrova-2b0159145/) — Foster + Partners
+- [Shivangi Panchal](https://www.linkedin.com/in/shivangi-panchal-a3452b243) — AA EmTech MArch
+
+## Concept
+This project models relationships between architectural elements in Rhino as a graph of interconnected nodes and edges. It captures rich metadata that can be used to visualise the graph and analyse weighted relationships across a range of architectural use cases.
+
+<figure>
+  <video  width="100%" autoplay loop muted playsinline>
+    <source src="./docs/spatial-graph.mp4" type="video/mp4" />
+  </video>
+  <figcaption><em>Computing the spatial connections as a network</em> — Shows how nodes and links are generated from the Rhinoceros 3D model.</figcaption>
+</figure>
+
+<br/>
+<figure>
+  <video  width="100%" autoplay loop muted playsinline>
+    <source src="./docs/graphviz-livelink.mp4" type="video/mp4" />
+  </video>
+  <figcaption>Video shows the live link feature, that regenerates the grph based on live changes in the model. This specific graph is the geometric connectivity graph usefull for clash detection.</figcaption>
+</figure>
+
+<br/>
+<figure>
+  <video  width="100%" autoplay loop muted playsinline>
+    <source src="./docs/connected-geometry.mp4" type="video/mp4" />
+  </video>
+  <figcaption>A feedback loop was considered essential, so we implemented a script that evaluates graph results from the web app and identifies elements that do not meet the defined criteria.</figcaption>
+</figure>
+
 
 ## Features
-
 - **3D graph viewer** — Interactive force-directed graph using Three.js and `react-force-graph-3d`
 - **Graph files** — Save, load, duplicate, and delete named graphs; list all saved files in a sidebar
 - **Rhino integration** — Attach and download Rhino `.3dm` files per graph
@@ -13,11 +62,11 @@
 - **Error preview** — Toggle to highlight nodes/links with error-related metadata
 - **Dark/light theme** — Theme toggle in the UI
 
-## Tech stack
-
+## Third Party Libraries
+- **Models:** We used models from [SourceCityToolkit_Rhino](https://github.com/SpectraStudios/SourceCityToolkit_Rhino/tree/main), that we modified to show various graph examples
 - **Framework:** Next.js 16, React 19
-- **3D:** Three.js, react-force-graph-3d
-- **State:** Zustand
+- **3D Graph:** We used [react-force-graph-3d](https://github.com/vasturiano/react-force-graph) to visualise the graph links in the web application
+- **State management:** Zustand
 - **Database:** Turso (libSQL) via `@libsql/client`
 - **UI:** Tailwind CSS, shadcn/ui, Base UI, Lucide icons
 
@@ -48,10 +97,10 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Scripts
 
-| Script   | Description              |
-|----------|--------------------------|
+| Script          | Description             |
+| --------------- | ----------------------- |
 | `npm run dev`   | Start dev server        |
-| `npm run build` | Production build       |
+| `npm run build` | Production build        |
 | `npm run start` | Start production server |
 
 ## Data model
@@ -70,7 +119,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Project structure (high level)
 
-```
+```txt
 src/
 ├── app/           # Next.js app router (page, layout, api routes)
 ├── components/    # GraphViewer, MetadataStylePanel, NodeDetailPanel, UI
