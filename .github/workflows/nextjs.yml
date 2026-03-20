@@ -39,11 +39,11 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: .
+        working-directory: apps/next-app
 
       - name: Build static export
-        run: pnpm --filter ./apps/next-app... build
-        working-directory: .
+        run: pnpm build
+        working-directory: apps/next-app
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
