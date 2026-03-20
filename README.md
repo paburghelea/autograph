@@ -1,6 +1,8 @@
 # AutoGraph
+![Banner](./docs/img/banner.png)
 
 Winner of Best Overall Hack at the AEC Tech 2026 Hackathon, this project enables the automated generation of analysis graphs from Rhinoceros 3D architectural models and the visualisation though a cutom web application.
+
 
 <div>
   <img src="https://img.shields.io/badge/Next.js-16-black?style=flat&logo=nextdotjs" alt="Next.js" />
@@ -14,9 +16,10 @@ Winner of Best Overall Hack at the AEC Tech 2026 Hackathon, this project enables
   <img src="https://img.shields.io/badge/AEC%20Tech%202026-Best%20Overall%20Hack-ff69b4?style=flat" alt="Prize" />
 </div>
 
-
 ## Contributors
+
 Special thanks to all the hackathon project contributors, withouth wich this would not have been possible:
+
 - [Paul-Andrei Burghelea](https://www.linkedin.com/in/paburghelea) — Foster + Partners
 - [Christoph Geiger](https://www.linkedin.com/in/christoph-geiger-08b673221/) — Zaha Hadid Architects
 - [Jayanaveenaa Periyasamy](https://www.linkedin.com/in/jayanaveenaa-periyasamy/) — Zaha Hadid Architects
@@ -25,33 +28,35 @@ Special thanks to all the hackathon project contributors, withouth wich this wou
 - [Shivangi Panchal](https://www.linkedin.com/in/shivangi-panchal-a3452b243) — AA EmTech MArch
 
 ## Concept
+![Banner](./docs/img/research-gap.png)
 This project models relationships between architectural elements in Rhino as a graph of interconnected nodes and edges. It captures rich metadata that can be used to visualise the graph and analyse weighted relationships across a range of architectural use cases.
 
-<figure>
-  <video  width="100%" autoplay loop muted playsinline>
-    <source src="./docs/spatial-graph.mp4" type="video/mp4" />
-  </video>
-  <figcaption><em>Computing the spatial connections as a network</em> — Shows how nodes and links are generated from the Rhinoceros 3D model.</figcaption>
-</figure>
+![Banner](./docs/img/key-idea.png)
+---
+![Banner](./docs/img/idea.png)
+---
+
+![Application](./docs/img/graph-example-light.png)
+*Example web application that you can test from here: [Link](https://paburghelea.github.io/autograph/)*
 
 <br/>
-<figure>
-  <video  width="100%" autoplay loop muted playsinline>
-    <source src="./docs/graphviz-livelink.mp4" type="video/mp4" />
-  </video>
-  <figcaption>Video shows the live link feature, that regenerates the grph based on live changes in the model. This specific graph is the geometric connectivity graph usefull for clash detection.</figcaption>
-</figure>
+
+![Spatial Graph](./docs/img/spatial-graph.gif)
+*Computing the spatial connections as a network* — Shows how nodes and links are generated from the Rhinoceros 3D model.
 
 <br/>
-<figure>
-  <video  width="100%" autoplay loop muted playsinline>
-    <source src="./docs/connected-geometry.mp4" type="video/mp4" />
-  </video>
-  <figcaption>A feedback loop was considered essential, so we implemented a script that evaluates graph results from the web app and identifies elements that do not meet the defined criteria.</figcaption>
-</figure>
+
+![Live link](./docs/img/graphviz-livelink.gif)
+Video shows the live link feature, that regenerates the grph based on live changes in the model. This specific graph is the geometric connectivity graph usefull for clash detection.
+
+<br/>
+
+![SpConnected geometry](./docs/img/connected-geometry.gif)
+A feedback loop was considered essential, so we implemented a script that evaluates graph results from the web app and identifies elements that do not meet the defined criteria.
 
 
 ## Features
+
 - **3D graph viewer** — Interactive force-directed graph using Three.js and `react-force-graph-3d`
 - **Graph files** — Save, load, duplicate, and delete named graphs; list all saved files in a sidebar
 - **Rhino integration** — Attach and download Rhino `.3dm` files per graph
@@ -63,6 +68,7 @@ This project models relationships between architectural elements in Rhino as a g
 - **Dark/light theme** — Theme toggle in the UI
 
 ## Third Party Libraries
+
 - **Models:** We used models from [SourceCityToolkit_Rhino](https://github.com/SpectraStudios/SourceCityToolkit_Rhino/tree/main), that we modified to show various graph examples
 - **Framework:** Next.js 16, React 19
 - **3D Graph:** We used [react-force-graph-3d](https://github.com/vasturiano/react-force-graph) to visualise the graph links in the web application
@@ -97,6 +103,8 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Scripts
 
+Monorepo structure. run 'cd apps/next-app' and run the following commands:
+
 | Script          | Description             |
 | --------------- | ----------------------- |
 | `npm run dev`   | Start dev server        |
@@ -117,7 +125,10 @@ Open [http://localhost:3000](http://localhost:3000).
 - `DELETE /api/graphs/[id]` — Delete a graph file
 - `GET /api/graphs/[id]/rhino` — Download the attached Rhino file
 
-## Project structure (high level)
+## Web app project structure (high level)
+
+![Web architecture](./docs/img/web-architecture.png)
+*Web application architecture*
 
 ```txt
 src/
@@ -127,3 +138,4 @@ src/
 ├── store/         # Zustand use-graph-store
 └── types/         # graph.ts (GraphNode, GraphLink, GraphData, GraphFile, API payloads)
 ```
+*Next app folder structure*
