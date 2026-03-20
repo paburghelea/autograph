@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import * as store from "@/lib/store";
 import type { GraphData } from "@/types/graph";
 
+// Required for `output: "export"` so Next can prerender this route handler.
+export const dynamic = "force-static";
+export const revalidate = 0;
+
 /**
  * POST /api/data
  * Receive graph data and create a new stored graph (for external clients / automation).

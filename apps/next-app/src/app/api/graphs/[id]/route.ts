@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import * as store from "@/lib/store";
 import type { UpdateGraphPayload, GraphData } from "@/types/graph";
 
+// Required for `output: "export"` so Next can prerender this route handler.
+// See also: `apps/next-app/src/app/api/graphs/route.ts`
+export const dynamic = "force-static";
+export const revalidate = 0;
+
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(

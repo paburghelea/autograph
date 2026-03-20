@@ -3,10 +3,53 @@
 import type { JSX } from "react";
 import { useMemo } from "react";
 import { useGraphStore } from "@/store/use-graph-store";
-import { getNumericPathsFromNodes, getNumericPathsFromLinks } from "@/lib/metadata";
+import {
+  getNumericPathsFromNodes,
+  getNumericPathsFromLinks,
+  getValueByPath,
+} from "@/lib/metadata";
 
 export function MetadataStylePanel(): JSX.Element | null {
   const { graphData, metadataStyle, setMetadataStyle } = useGraphStore();
+
+  const getNumericStats = (attrPath: string | null) => {
+    if (!attrPath) return null;
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    let count = 0;
+
+    for (const node of graphData.nodes) {
+      const raw = getValueByPath(node as Record<string, unknown>, attrPath);
+      const v = typeof raw === "number" ? raw : Number(raw);
+      if (!Number.isFinite(v)) continue;
+      count += 1;
+      min = Math.min(min, v);
+      max = Math.max(max, v);
+    }
+
+    if (count === 0 || !Number.isFinite(min) || !Number.isFinite(max) || min === max) {
+      return null;
+    }
+
+    return { min, max, count };
+  };
+
+  const colorStats = useMemo(
+    () => getNumericStats(metadataStyle.colorAttribute),
+    [graphData.nodes, metadataStyle.colorAttribute]
+  );
+  const sizeStats = useMemo(
+    () => getNumericStats(metadataStyle.sizeAttribute),
+    [graphData.nodes, metadataStyle.sizeAttribute]
+  );
+
+  const formatMetric = (v: number) => {
+    const abs = Math.abs(v);
+    if (abs >= 1000 || (abs > 0 && abs < 0.001)) return v.toExponential(2);
+    if (Number.isInteger(v)) return String(v);
+    // Trim trailing zeros for readability.
+    return v.toFixed(3).replace(/\.?0+$/, "").replace(/0+$/, "");
+  };
 
   const { nodeNumericKeys, linkNumericKeys } = useMemo(() => {
     const nodeKeys = getNumericPathsFromNodes(
@@ -25,37 +68,10 @@ export function MetadataStylePanel(): JSX.Element | null {
   }
 
   return (
-    <
-    >
-    
-      <div className=" border-border  py-2">
-        <p className="text-xs font-semibold text-muted-foreground">
-          Metadata preview
-        </p>
-   
-        <div className="mt-2">
-          <p className="text-[11px] font-medium text-muted-foreground mb-1">
-            Available numeric attributes
-          </p>
-          <div className="space-y-1.5 max-h-28 overflow-y-auto">
-     
-            {linkNumericKeys.length > 0 && (
-              <div>
-                <p className="text-[10px] font-medium text-muted-foreground/90 uppercase tracking-wide">
-                  Links
-                </p>
-                <ul className="text-[11px] text-muted-foreground/90 space-y-0.5 font-mono mt-0.5">
-                  {linkNumericKeys.map((key) => (
-                    <li key={`link-${key}`} className="truncate" title={key}>
-                      {key}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+    <>
+      <span className="text-xs text-muted-foreground">
+        Metadata
+      </span>
       <div className="space-y-3 py-3 text-xs">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between gap-2">
@@ -79,6 +95,7 @@ export function MetadataStylePanel(): JSX.Element | null {
               ))}
             </select>
           </div>
+    
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1">
               <span className="text-[11px] text-muted-foreground">Min</span>
@@ -129,6 +146,7 @@ export function MetadataStylePanel(): JSX.Element | null {
               ))}
             </select>
           </div>
+   
           <div className="flex items-center justify-between gap-2">
             <div className="flex flex-1 flex-col gap-0.5">
               <span className="text-[11px] text-muted-foreground">Min</span>

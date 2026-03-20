@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type { GraphFile, GraphData, GraphNode } from "@/types/graph";
+import { SAMPLE_DEFINITIONS, type SampleId } from "@/lib/sample-graphs";
 import {
   runColumnFloorTest,
   applyColumnFloorTestToNodes,
@@ -9,6 +10,75 @@ import {
 } from "@/lib/column-floor-test";
 
 const EMPTY_GRAPH: GraphData = { nodes: [], links: [] };
+const LOCAL_STORAGE_FILES_KEY = "autograph:graphs:v1";
+const LOCAL_STORAGE_CURRENT_ID_KEY = "autograph:currentGraphId:v1";
+
+function isGraphData(v: unknown): v is GraphData {
+  if (!v || typeof v !== "object") return false;
+  const obj = v as Record<string, unknown>;
+  return (
+    Array.isArray(obj.nodes) &&
+    Array.isArray(obj.links)
+  );
+}
+
+function readLocalFiles(): GraphFile[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(LOCAL_STORAGE_FILES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    // Minimal validation to avoid crashing on unexpected shapes.
+    return (parsed as GraphFile[]).filter((f) => {
+      return (
+        f &&
+        typeof f === "object" &&
+        typeof f.id === "string" &&
+        typeof f.name === "string" &&
+        typeof f.createdAt === "string" &&
+        typeof f.updatedAt === "string" &&
+        isGraphData((f as GraphFile).graph)
+      );
+    });
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalFiles(files: GraphFile[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(LOCAL_STORAGE_FILES_KEY, JSON.stringify(files));
+  } catch {
+    // Ignore storage quota / serialization errors.
+  }
+}
+
+function persistLocalCurrentId(id: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (!id) window.localStorage.removeItem(LOCAL_STORAGE_CURRENT_ID_KEY);
+    else window.localStorage.setItem(LOCAL_STORAGE_CURRENT_ID_KEY, id);
+  } catch {
+    // ignore
+  }
+}
+
+function makeId(): string {
+  // Prefer WebCrypto where available (browser).
+  const c = (globalThis as unknown as { crypto?: Crypto }).crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  return `local-${Math.random().toString(16).slice(2)}-${Date.now()}`;
+}
+
+function mergeLocalFiles(next: GraphFile[], updated: GraphFile): GraphFile[] {
+  const idx = next.findIndex((f) => f.id === updated.id);
+  if (idx === -1) return [updated, ...next];
+  const copy = next.slice();
+  copy[idx] = updated;
+  return copy;
+}
 
 const DUMMY_GRAPH: GraphData = {
   nodes: [
@@ -209,6 +279,7 @@ interface GraphStore {
   saveAsNew: () => Promise<void>;
   deleteFile: (id: string) => Promise<void>;
   downloadRhino: () => Promise<void>;
+  initWithSample: (id: SampleId) => void;
   initWithDummyData: () => void;
   /** Run column–floor connection test, update nodes with faulty, and persist to DB */
   runColumnFloorTest: () => Promise<ColumnFloorTestResult>;
@@ -260,10 +331,45 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
       if (res.ok) {
         const data = await res.json();
         set({ files: data });
+        // Keep local cache in sync when possible.
+        if (Array.isArray(data)) {
+          writeLocalFiles(data as GraphFile[]);
+          // If local cache already has a current id, keep it.
+          // (When DB works, we don't auto-select currentFile here.)
+        }
+        return;
       }
     } catch (e) {
       console.error(e);
     } finally {
+      // Fallback: load local cache when API is down.
+      const localFiles = readLocalFiles();
+      if (localFiles.length > 0) {
+        const currentId = (() => {
+          if (typeof window === "undefined") return null;
+          try {
+            return window.localStorage.getItem(LOCAL_STORAGE_CURRENT_ID_KEY);
+          } catch {
+            return null;
+          }
+        })();
+        const currentFile = currentId
+          ? localFiles.find((f) => f.id === currentId) ?? null
+          : null;
+
+        set({
+          files: localFiles,
+          ...(currentFile
+            ? {
+                currentFile,
+                graphData: currentFile.graph,
+                selectedNode: null,
+                columnFloorTestResult: null,
+              }
+            : {}),
+        });
+      }
+
       set({ loading: false });
     }
   },
@@ -291,16 +397,65 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
           ...(rhinoBase64 && { rhinoFileBase64: rhinoBase64, rhinoFileName }),
         }),
       });
-      if (res.ok) {
-        const updated = await res.json();
-        set((state) => ({
-          currentFile: updated,
-          files: state.files.map((f) => (f.id === updated.id ? updated : f)),
-          rhinoFile: null,
-        }));
+      if (!res.ok) {
+        throw new Error(`Save failed (HTTP ${res.status})`);
       }
+
+      const updated = await res.json();
+      set((state) => ({
+        currentFile: updated,
+        files: state.files.map((f) => (f.id === updated.id ? updated : f)),
+        rhinoFile: null,
+      }));
+      // Also persist to local storage.
+      const existing = readLocalFiles();
+      const now = new Date().toISOString();
+      const updatedWithTimestamps: GraphFile = {
+        ...updated,
+        updatedAt: updated.updatedAt ?? now,
+        createdAt: updated.createdAt ?? updated.updatedAt ?? now,
+      };
+      const merged = mergeLocalFiles(existing, updatedWithTimestamps);
+      writeLocalFiles(merged);
+      persistLocalCurrentId(updated.id);
     } catch (e) {
       console.error(e);
+      // Persist locally if the API is unavailable.
+      const now = new Date().toISOString();
+      let rhinoBase64Local: string | undefined;
+      if (rhinoFile) {
+        const buf = await rhinoFile.arrayBuffer();
+        if (buf.byteLength > 0) {
+          rhinoBase64Local = btoa(
+            new Uint8Array(buf).reduce(
+              (acc, byte) => acc + String.fromCharCode(byte),
+              ""
+            )
+          );
+        }
+      }
+      const rhinoFileNameLocal = rhinoFile?.name;
+
+      const localUpdated: GraphFile = {
+        ...currentFile,
+        name: newGraphName || currentFile.name,
+        graph: graphData,
+        updatedAt: now,
+        createdAt: currentFile.createdAt ?? now,
+        ...(rhinoBase64Local && {
+          rhinoFileBase64: rhinoBase64Local,
+          rhinoFileName: rhinoFileNameLocal,
+        }),
+      };
+      set((state) => ({
+        currentFile: localUpdated,
+        files: state.files.map((f) => (f.id === localUpdated.id ? localUpdated : f)),
+        rhinoFile: null,
+      }));
+      const existing = readLocalFiles();
+      const merged = mergeLocalFiles(existing, localUpdated);
+      writeLocalFiles(merged);
+      persistLocalCurrentId(localUpdated.id);
     } finally {
       set({ saving: false });
     }
@@ -331,18 +486,61 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
           rhinoFileName,
         }),
       });
-      if (res.ok) {
-        const created = await res.json();
-        set((state) => ({
-          files: [created, ...state.files],
-          currentFile: created,
-          graphData: created.graph,
-          rhinoFile: null,
-          newGraphName: "",
-        }));
+      if (!res.ok) {
+        throw new Error(`Save as new failed (HTTP ${res.status})`);
       }
+
+      const created = await res.json();
+      set((state) => ({
+        files: [created, ...state.files],
+        currentFile: created,
+        graphData: created.graph,
+        rhinoFile: null,
+        newGraphName: "",
+      }));
+      // Also persist to local storage.
+      const existing = readLocalFiles();
+      const now = new Date().toISOString();
+      const createdWithTimestamps: GraphFile = {
+        ...created,
+        updatedAt: created.updatedAt ?? now,
+        createdAt: created.createdAt ?? created.updatedAt ?? now,
+      };
+      const merged = mergeLocalFiles(existing, createdWithTimestamps);
+      writeLocalFiles(merged);
+      persistLocalCurrentId(createdWithTimestamps.id);
     } catch (e) {
       console.error(e);
+      // Persist locally when API is down.
+      const now = new Date().toISOString();
+      const id = makeId();
+      let rhinoBase64Local: string | undefined;
+      if (rhinoFile) {
+        const buf = await rhinoFile.arrayBuffer();
+        rhinoBase64Local = btoa(
+          new Uint8Array(buf).reduce((acc, byte) => acc + String.fromCharCode(byte), "")
+        );
+      }
+      const localCreated: GraphFile = {
+        id,
+        name,
+        graph: graphData,
+        rhinoFileBase64: rhinoBase64Local,
+        rhinoFileName: rhinoFile?.name,
+        createdAt: now,
+        updatedAt: now,
+      };
+      set((state) => ({
+        files: [localCreated, ...state.files],
+        currentFile: localCreated,
+        graphData: localCreated.graph,
+        rhinoFile: null,
+        newGraphName: "",
+      }));
+      const existing = readLocalFiles();
+      const merged = mergeLocalFiles(existing, localCreated);
+      writeLocalFiles(merged);
+      persistLocalCurrentId(localCreated.id);
     } finally {
       set({ saving: false });
     }
@@ -352,17 +550,38 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
     if (!confirm("Delete this graph?")) return;
     try {
       const res = await fetch(`/api/graphs/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        const { currentFile } = get();
-        set((state) => ({
-          files: state.files.filter((f) => f.id !== id),
-          ...(currentFile?.id === id
-            ? { currentFile: null, graphData: EMPTY_GRAPH }
-            : {}),
-        }));
+      if (!res.ok) {
+        throw new Error(`Delete failed (HTTP ${res.status})`);
       }
+
+      const { currentFile } = get();
+      set((state) => ({
+        files: state.files.filter((f) => f.id !== id),
+        ...(currentFile?.id === id
+          ? { currentFile: null, graphData: EMPTY_GRAPH }
+          : {}),
+      }));
+      // Persist locally.
+      const existing = readLocalFiles();
+      const remaining = existing.filter((f) => f.id !== id);
+      writeLocalFiles(remaining);
+      persistLocalCurrentId(
+        currentFile?.id === id ? null : currentFile?.id ?? null
+      );
     } catch (e) {
       console.error(e);
+      // Local fallback even when API is down.
+      const { currentFile } = get();
+      set((state) => ({
+        files: state.files.filter((f) => f.id !== id),
+        ...(currentFile?.id === id
+          ? { currentFile: null, graphData: EMPTY_GRAPH }
+          : {}),
+      }));
+      const existing = readLocalFiles();
+      const remaining = existing.filter((f) => f.id !== id);
+      writeLocalFiles(remaining);
+      persistLocalCurrentId(currentFile?.id === id ? null : currentFile?.id ?? null);
     }
   },
 
@@ -385,12 +604,20 @@ export const useGraphStore = create<GraphStore>((set, get) => ({
   },
 
   initWithDummyData: () => {
+    get().initWithSample("overview");
+  },
+
+  initWithSample: (id) => {
+    const def = SAMPLE_DEFINITIONS.find((s) => s.id === id);
+
     set({
       currentFile: null,
-      graphData: DUMMY_GRAPH,
+      graphData: def?.graph ?? DUMMY_GRAPH,
       selectedNode: null,
-      newGraphName: "Sample building tectonics",
+      metadataStyle: DEFAULT_METADATA_STYLE,
+      newGraphName: def?.name ?? "Sample building tectonics",
       rhinoFile: null,
+      columnFloorTestResult: null,
     });
   },
 

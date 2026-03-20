@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import * as store from "@/lib/store";
 import type { CreateGraphPayload, GraphData } from "@/types/graph";
 
+// Required for `output: "export"` so Next can prerender this route handler.
+// Note: GitHub Pages will not support POST/PATCH/DELETE as real APIs,
+// but these exports unblock the static build pipeline.
+export const dynamic = "force-static";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const files = await store.listGraphFiles();

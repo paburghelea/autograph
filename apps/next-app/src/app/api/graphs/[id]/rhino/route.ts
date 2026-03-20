@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as store from "@/lib/store";
 
+// Required for `output: "export"` so Next can prerender this route handler.
+// Note: The `id` is dynamic, so GitHub Pages won't provide real API behavior,
+// but these exports unblock static export builds.
+export const dynamic = "force-static";
+export const revalidate = 0;
+
 type RouteParams = { params: Promise<{ id: string }> };
 
 /**

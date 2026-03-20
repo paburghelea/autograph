@@ -6,6 +6,7 @@ import { GraphViewer } from "@/components/GraphViewer";
 import { MetadataStylePanel } from "@/components/MetadataStylePanel";
 import { NodeDetailPanel } from "@/components/NodeDetailPanel";
 import { useGraphStore } from "@/store/use-graph-store";
+import { SAMPLE_DEFINITIONS, type SampleId } from "@/lib/sample-graphs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -56,7 +57,7 @@ export default function Home() {
     saveAsNew,
     deleteFile,
     downloadRhino,
-    initWithDummyData,
+    initWithSample,
     runColumnFloorTest,
     liveUpdateMode,
     setLiveUpdateMode,
@@ -67,6 +68,9 @@ export default function Home() {
 
   const rhinoInputRef = useRef<HTMLInputElement>(null);
   const [showInitDialog, setShowInitDialog] = useState(false);
+  const [selectedSampleId, setSelectedSampleId] = useState<SampleId>(
+    SAMPLE_DEFINITIONS[0].id
+  );
 
   useEffect(() => {
     fetchFiles();
@@ -97,7 +101,6 @@ export default function Home() {
       <Sidebar variant="inset">
         <SidebarHeader className="flex flex-row items-center justify-start">
           <Image className="size-6" src="/logo.png" alt="AutoGraph" width={96} height={96} />
-
           <span className="font-semibold">
             AutoGraph
           </span>
@@ -123,7 +126,7 @@ export default function Home() {
                         onClick={() => loadFile(file)}
                       >
                         <FileStack className="size-4 shrink-0" />
-                        <span className="truncate">{file.name}</span>
+                        <span className="truncate text-xs">{file.name}</span>
                       </SidebarMenuButton>
                       <SidebarMenuAction
                         onClick={() => deleteFile(file.id)}
@@ -141,10 +144,12 @@ export default function Home() {
         </SidebarContent>
       </Sidebar>
       <SidebarInset className="relative bg-background rounded-xl border border-border">
-        <header className="flex z-10 h-14 shrink-0 items-center gap-4 px-4">
-          <div className="flex flex-1 items-center gap-3">
-            <SidebarTrigger />
-            <ThemeToggle />
+        <header className="flex z-10 h-10 shrink-0 items-center gap-4 px-1 ">
+          <div className="flex flex-1 items-center gap-1">
+            <div className="flex items-center px-2 gap-1">
+              <SidebarTrigger />
+              <ThemeToggle />
+            </div>
             <Button
               variant={liveUpdateMode ? "default" : "outline"}
               size="sm"
@@ -173,71 +178,44 @@ export default function Home() {
               <AlertTriangle className="size-4 shrink-0" />
               Error preview {errorPreviewMode ? "on" : "off"}
             </Button>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-3">
-            <Input
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setShowInitDialog(true)}
+              title="Load one of the built-in sample graphs"
+            >
+              <FileStack className="size-4 shrink-0" />
+              Samples
+            </Button>
+            {/* <Input
               type="text"
               placeholder="Graph name"
               value={newGraphName || (currentFile?.name ?? "")}
               onChange={(e) => setNewGraphName(e.target.value)}
-              className="h-8 w-48"
-            />
-            <>
-              <input
-                ref={rhinoInputRef}
-                type="file"
-                accept=".3dm"
-                className="hidden"
-                onChange={(e) => setRhinoFile(e.target.files?.[0] ?? null)}
-                aria-hidden
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                type="button"
-                onClick={() => rhinoInputRef.current?.click()}
-              >
-                {rhinoFile ? rhinoFile.name : currentFile?.rhinoFileName ?? "Rhino.3dm"}
-              </Button>
-            </>
-            {currentFile?.rhinoFileBase64 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={downloadRhino}
-                aria-label="Download Rhino file"
-              >
-                <Download className="size-4 shrink-0" />
-                Download Rhino
-              </Button>
-            )}
+              className="h-7 w-full"
+            /> */}
+
             <Button
               size="sm"
-              onClick={save}
-              disabled={!currentFile || saving}
-            >
-              {saving ? "Saving…" : "Save"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
+              variant="default"
               onClick={saveAsNew}
               disabled={saving}
+              className="ml-auto"
             >
-              Save as new
+              Save new
             </Button>
             <Button
-              variant="outline"
               size="sm"
+              variant="outline"
               onClick={() => runColumnFloorTest()}
-              title="Run column–floor connection test"
             >
-              <FlaskConical className="size-4 shrink-0" />
+              <FlaskConical className="w-3 shrink-0" />
               Run test
             </Button>
             {columnFloorTestResult !== null && (
               <div
-                className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm"
+                className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 h-7 text-sm"
                 title={columnFloorTestResult.message}
               >
                 <span className="text-muted-foreground">Score:</span>
@@ -268,7 +246,7 @@ export default function Home() {
           onClose={() => setSelectedNode(null)}
         />
 
-        <footer className="shrink-0 w-fit absolute bottom-1 left-1 px-2 rounded-lg border z-10 border-border py-2 text-center text-sm text-muted-foreground">
+        <footer className="shrink-0 w-fit absolute text-xs bottom-1 left-1 px-2 rounded-lg border z-10 border-border py-2 text-center text-muted-foreground">
           POST graph data to{" "}
           <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
             /api/data
@@ -283,27 +261,39 @@ export default function Home() {
         <Dialog open={showInitDialog} onOpenChange={setShowInitDialog}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Start with a sample building graph?</DialogTitle>
-              <DialogDescription>
-                No graphs are saved yet. You can initialise the viewer with a
-                sample of building tectonics and their relationships, including
-                metadata for materials, element types, and more.
+              <DialogTitle>Load a sample building graph?</DialogTitle>
+              <DialogDescription className="text-xs font-sans">
+                Replace the current viewer data with one of the built-in sample graphs
+                (each includes multiple numeric metrics for the metadata preview).
               </DialogDescription>
             </DialogHeader>
+
+            <div className="space-y-2">
+              <select
+                value={selectedSampleId}
+                onChange={(e) => setSelectedSampleId(e.target.value as SampleId)}
+                className="h-10 w-full border bg-background px-3 text-xs rounded-md"
+              >
+                {SAMPLE_DEFINITIONS.map((s) => (
+                  <option className="text-sm font-sans" key={s.id} value={s.id}>
+                    {s.name} ({s.complexity})
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground font-sans">{SAMPLE_DEFINITIONS.find((s) => s.id === selectedSampleId)?.description}</p>
+            </div>
+
             <DialogFooter showCloseButton>
               <Button
+                className="mr-auto"
                 onClick={() => {
-                  initWithDummyData();
+                  initWithSample(selectedSampleId);
                   setShowInitDialog(false);
                 }}
               >
-                Load sample building graph
+                Load sample
               </Button>
-              <DialogClose>
-                <Button variant="outline" type="button">
-                  Maybe later
-                </Button>
-              </DialogClose>
+
             </DialogFooter>
           </DialogContent>
         </Dialog>

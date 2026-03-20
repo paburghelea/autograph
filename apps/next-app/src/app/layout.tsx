@@ -28,9 +28,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background`}>
-      {/* <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head> */}
       <body
         className={`antialiased bg-background`}
       >
