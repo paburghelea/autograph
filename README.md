@@ -29,6 +29,7 @@ Special thanks to all the hackathon project contributors, withouth wich this wou
 
 ## Concept
 ![Banner](./docs/img/research-gap.png)
+
 This project models relationships between architectural elements in Rhino as a graph of interconnected nodes and edges. It captures rich metadata that can be used to visualise the graph and analyse weighted relationships across a range of architectural use cases.
 
 ![Banner](./docs/img/key-idea.png)
@@ -37,21 +38,25 @@ This project models relationships between architectural elements in Rhino as a g
 ---
 
 ![Application](./docs/img/graph-example-light.png)
+
 *Example web application that you can test from here: [Link](https://paburghelea.github.io/autograph/)*
 
 <br/>
 
 ![Spatial Graph](./docs/img/spatial-graph.gif)
+
 *Computing the spatial connections as a network* — Shows how nodes and links are generated from the Rhinoceros 3D model.
 
 <br/>
 
 ![Live link](./docs/img/graphviz-livelink.gif)
+
 Video shows the live link feature, that regenerates the grph based on live changes in the model. This specific graph is the geometric connectivity graph usefull for clash detection.
 
 <br/>
 
 ![SpConnected geometry](./docs/img/connected-geometry.gif)
+
 A feedback loop was considered essential, so we implemented a script that evaluates graph results from the web app and identifies elements that do not meet the defined criteria.
 
 
