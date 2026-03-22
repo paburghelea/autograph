@@ -12,45 +12,6 @@ import {
 export function MetadataStylePanel(): JSX.Element | null {
   const { graphData, metadataStyle, setMetadataStyle } = useGraphStore();
 
-  const getNumericStats = (attrPath: string | null) => {
-    if (!attrPath) return null;
-    let min = Number.POSITIVE_INFINITY;
-    let max = Number.NEGATIVE_INFINITY;
-    let count = 0;
-
-    for (const node of graphData.nodes) {
-      const raw = getValueByPath(node as Record<string, unknown>, attrPath);
-      const v = typeof raw === "number" ? raw : Number(raw);
-      if (!Number.isFinite(v)) continue;
-      count += 1;
-      min = Math.min(min, v);
-      max = Math.max(max, v);
-    }
-
-    if (count === 0 || !Number.isFinite(min) || !Number.isFinite(max) || min === max) {
-      return null;
-    }
-
-    return { min, max, count };
-  };
-
-  const colorStats = useMemo(
-    () => getNumericStats(metadataStyle.colorAttribute),
-    [graphData.nodes, metadataStyle.colorAttribute]
-  );
-  const sizeStats = useMemo(
-    () => getNumericStats(metadataStyle.sizeAttribute),
-    [graphData.nodes, metadataStyle.sizeAttribute]
-  );
-
-  const formatMetric = (v: number) => {
-    const abs = Math.abs(v);
-    if (abs >= 1000 || (abs > 0 && abs < 0.001)) return v.toExponential(2);
-    if (Number.isInteger(v)) return String(v);
-    // Trim trailing zeros for readability.
-    return v.toFixed(3).replace(/\.?0+$/, "").replace(/0+$/, "");
-  };
-
   const { nodeNumericKeys, linkNumericKeys } = useMemo(() => {
     const nodeKeys = getNumericPathsFromNodes(
       graphData.nodes as Record<string, unknown>[]

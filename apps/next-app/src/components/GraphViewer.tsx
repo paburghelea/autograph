@@ -5,7 +5,8 @@ import dynamic from "next/dynamic";
 import type { GraphData, GraphNode } from "@/types/graph";
 import { useGraphStore } from "@/store/use-graph-store";
 import { getValueByPath } from "@/lib/metadata";
-import { GitBranchPlusIcon } from "lucide-react";
+import { ChevronDown, GitBranchPlusIcon, SlidersHorizontal } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { MetadataStylePanel } from "./MetadataStylePanel";
 
 const ForceGraph3D = dynamic(() => import("react-force-graph-3d"), {
@@ -63,6 +64,7 @@ export function GraphViewer({
   const [activeLinkSetIndices, setActiveLinkSetIndices] = useState<Set<number>>(
     () => new Set()
   );
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(true);
 
   const linkSets = graphData.links ?? [];
 
@@ -204,11 +206,45 @@ export function GraphViewer({
 
   return (
     <div ref={containerRef} className="absolute inset-0 overflow-hidden">
-      <div className="absolute right-1 bottom-1 z-20 rounded-lg bg-background p-4 border border-border max-w-[min(100%,20rem)]">
+      {!mobilePanelOpen && (
+        <button
+          type="button"
+          aria-label="Show graph controls"
+          aria-expanded={false}
+          onClick={() => setMobilePanelOpen(true)}
+          className={cn(
+            "absolute right-2 bottom-2 z-20 flex size-11 touch-manipulation items-center justify-center rounded-lg border border-border bg-background ",
+            "sm:hidden"
+          )}
+        >
+          <SlidersHorizontal className="size-5 text-muted-foreground" aria-hidden />
+        </button>
+      )}
+
+      <div
+        className={cn(
+          "absolute right-1 bottom-1 z-20 max-w-[min(100%,20rem)] rounded-lg border border-border bg-background p-4",
+          !mobilePanelOpen && "max-sm:hidden"
+        )}
+      >
+        <div className="mb-3 flex items-center justify-between gap-2 sm:hidden">
+          <span className="text-xs font-medium text-muted-foreground">
+            Graph controls
+          </span>
+          <button
+            type="button"
+            aria-label="Hide graph controls"
+            aria-expanded={true}
+            onClick={() => setMobilePanelOpen(false)}
+            className="flex size-9 touch-manipulation items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <ChevronDown className="size-4" aria-hidden />
+          </button>
+        </div>
 
         <MetadataStylePanel />
 
-        <div className="mb-1.5 text-xs font-medium text-muted-foreground border-t pt-4">
+        <div className="mb-1.5 border-t pt-4 text-xs font-medium text-muted-foreground">
           Link sets
         </div>
         <div className="flex flex-wrap gap-1">

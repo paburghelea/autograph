@@ -1,16 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { FileStack, Download, Trash2, FlaskConical, RefreshCw, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { FileStack, Trash2, FlaskConical, RefreshCw, AlertTriangle } from "lucide-react";
 import { GraphViewer } from "@/components/GraphViewer";
-import { MetadataStylePanel } from "@/components/MetadataStylePanel";
 import { NodeDetailPanel } from "@/components/NodeDetailPanel";
 import { useGraphStore } from "@/store/use-graph-store";
 import { SAMPLE_DEFINITIONS, type SampleId } from "@/lib/sample-graphs";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
-import Image from "next/image";
 import {
   SidebarProvider,
   Sidebar,
@@ -66,7 +63,6 @@ export default function Home() {
     setErrorPreviewMode,
   } = useGraphStore();
 
-  const rhinoInputRef = useRef<HTMLInputElement>(null);
   const [showInitDialog, setShowInitDialog] = useState(false);
   const [selectedSampleId, setSelectedSampleId] = useState<SampleId>(
     SAMPLE_DEFINITIONS[0].id
@@ -100,7 +96,7 @@ export default function Home() {
     <SidebarProvider>
       <Sidebar variant="inset">
         <SidebarHeader className="flex flex-row items-center justify-start">
-          <Image className="size-6" src="/logo.png" alt="AutoGraph" width={96} height={96} />
+          <img className="size-6" src="/autograph/logo.png" alt="AutoGraph" width={96} height={96} />
           <span className="font-semibold">
             AutoGraph
           </span>
@@ -143,9 +139,8 @@ export default function Home() {
           </SidebarGroup>
         </SidebarContent>
       </Sidebar>
-      <SidebarInset className="relative bg-background rounded-xl border border-border">
-        <header className="flex z-10 h-10 shrink-0 items-center gap-4 px-1 ">
-          <div className="flex flex-1 items-center gap-1">
+      <SidebarInset className="relative bg-background rounded-xl md:border border-border">
+        <header className="flex z-10 flex-wrap absolute top-1  left-1 right-1 shrink-0 items-center gap-1  ">
             <div className="flex items-center px-2 gap-1">
               <SidebarTrigger />
               <ThemeToggle />
@@ -188,14 +183,6 @@ export default function Home() {
               <FileStack className="size-4 shrink-0" />
               Samples
             </Button>
-            {/* <Input
-              type="text"
-              placeholder="Graph name"
-              value={newGraphName || (currentFile?.name ?? "")}
-              onChange={(e) => setNewGraphName(e.target.value)}
-              className="h-7 w-full"
-            /> */}
-
             <Button
               size="sm"
               variant="default"
@@ -235,7 +222,6 @@ export default function Home() {
                 )}
               </div>
             )}
-          </div>
         </header>
 
         <GraphViewer
@@ -246,7 +232,7 @@ export default function Home() {
           onClose={() => setSelectedNode(null)}
         />
 
-        <footer className="shrink-0 w-fit absolute text-xs bottom-1 left-1 px-2 rounded-lg border z-10 border-border py-2 text-center text-muted-foreground">
+        <footer className="shrink-0 hidden md:block w-fit absolute text-xs bottom-1 left-1 px-2 rounded-lg border z-10 border-border py-2 text-center text-muted-foreground">
           POST graph data to{" "}
           <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">
             /api/data
@@ -285,7 +271,7 @@ export default function Home() {
 
             <DialogFooter showCloseButton>
               <Button
-                className="mr-auto"
+                className="md:mr-auto"
                 onClick={() => {
                   initWithSample(selectedSampleId);
                   setShowInitDialog(false);
@@ -293,7 +279,6 @@ export default function Home() {
               >
                 Load sample
               </Button>
-
             </DialogFooter>
           </DialogContent>
         </Dialog>
